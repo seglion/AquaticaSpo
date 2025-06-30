@@ -1,4 +1,4 @@
-import pytest_asyncio
+import pytest_asyncio# pylint: disable=import-error
 from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker
 from app.shared.config import settings
 

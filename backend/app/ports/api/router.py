@@ -1,13 +1,13 @@
 # app/ports/api/router.py
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status# pylint: disable=import-error
 from typing import List
 
-from sqlalchemy.ext.asyncio import AsyncSession
-from app.shared.dependencies import get_db_session
+from sqlalchemy.ext.asyncio import AsyncSession# pylint: disable=import-error
+from app.shared.dependencies import get_db_session# pylint: disable=import-error
 
 from app.ports.infrastructure.infrastructure import PortRepository
-from app.ports.api.schemas import PortCreate, PortRead, PortUpdate
+from app.ports.api.schemas import PortCreate, PortRead, PortUpdate# pylint: disable=import-error
 from app.ports.domain.models import Port
 
 router = APIRouter(prefix="/ports", tags=["ports"])

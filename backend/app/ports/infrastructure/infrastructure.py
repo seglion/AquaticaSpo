@@ -1,5 +1,5 @@
 from typing import List, Optional
-from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.ext.asyncio import AsyncSession# pylint: disable=import-error
 from sqlalchemy.future import select
 
 from app.ports.domain.models import Port
