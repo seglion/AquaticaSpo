@@ -1,4 +1,5 @@
 from pydantic_settings import BaseSettings
+from pydantic import ConfigDict
 from pathlib import Path
 
 class Settings(BaseSettings):
@@ -17,8 +18,7 @@ class Settings(BaseSettings):
             f"{self.POSTGRES_SERVER}:{self.POSTGRES_PORT}/{self.POSTGRES_DB}"
         )
 
-    class Config:
-        env_file = Path(__file__).resolve().parents[3] / ".env"  # Sube desde backend/shared/config.py hasta raíz
+    model_config = ConfigDict(env_file=Path(__file__).resolve().parents[3] / ".env")
 
 
 settings = Settings()
