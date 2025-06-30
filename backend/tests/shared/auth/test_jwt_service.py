@@ -1,4 +1,4 @@
-import pytest
+import pytest# pylint: disable=import-error
 from app.shared.auth.jwt_service import create_access_token, decode_access_token
 
 def test_create_and_decode_access_token():

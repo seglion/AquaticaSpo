@@ -1,5 +1,5 @@
 from sqlalchemy import Column, Integer, String, Float
-from .base import Base
+from .base import Base# pylint: disable=import-error
 from app.ports.domain.models import Port
 
 class PortORM(Base):
