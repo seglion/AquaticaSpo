@@ -1,6 +1,6 @@
 from fastapi import FastAPI
-from app.api.routers import ports
+from app.ports.api.router import router as ports_router
 
-app = FastAPI(title="Sistema de Previsión")
+app = FastAPI(title="Ports Forecast API")
 
-app.include_router(ports.router, prefix="/ports", tags=["ports"])
+app.include_router(ports_router)  

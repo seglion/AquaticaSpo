@@ -26,10 +26,18 @@ class PortRepository(PortService):
         result = await self.session.execute(select(PortORM))
         return [orm_to_domain(p) for p in result.scalars().all()]
 
-    async def update_port(self, port_id: int, name=None, country=None, latitude=None, longitude=None) -> Optional[Port]:
+    async def update_port(
+        self,
+        port_id: int,
+        name: Optional[str] = None,
+        country: Optional[str] = None,
+        latitude: Optional[float] = None,
+        longitude: Optional[float] = None
+    ) -> Optional[Port]:
         port_orm = await self.session.get(PortORM, port_id)
         if not port_orm:
             return None
+
         if name is not None:
             port_orm.name = name
         if country is not None:
@@ -38,6 +46,7 @@ class PortRepository(PortService):
             port_orm.latitude = latitude
         if longitude is not None:
             port_orm.longitude = longitude
+
         self.session.add(port_orm)
         await self.session.commit()
         await self.session.refresh(port_orm)
