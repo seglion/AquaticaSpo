@@ -1,5 +1,6 @@
 from sqlalchemy import Column, Integer, String, Boolean
-from .base import Base
+from app.shared.base import Base# pylint: disable=import-error
+
 from app.users.domain.models import User
 
 class UserORM(Base):

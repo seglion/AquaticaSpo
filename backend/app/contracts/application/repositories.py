@@ -1,24 +1,21 @@
-from abc import ABC, abstractmethod
-from typing import Optional, List
+from typing import List, Optional
 from app.contracts.domain.models import Contract
 
-class ContractRepositoryABC(ABC):
-    @abstractmethod
+class ContractRepositoryABC:
     async def create_contract(self, contract: Contract) -> Contract:
         ...
 
-    @abstractmethod
     async def get_contract_by_id(self, contract_id: int) -> Optional[Contract]:
         ...
 
-    @abstractmethod
+    async def list_contracts(self) -> List[Contract]:
+        ...
+
     async def update_contract(self, contract: Contract) -> Contract:
         ...
 
-    @abstractmethod
     async def delete_contract(self, contract_id: int) -> None:
         ...
 
-    @abstractmethod
-    async def list_contract(self) -> List[Contract]:
+    async def list_contracts_by_user_id(self, user_id: int) -> List[Contract]:
         ...

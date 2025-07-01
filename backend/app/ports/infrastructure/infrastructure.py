@@ -55,7 +55,7 @@ class PortRepository(PortService):
     async def delete_port(self, port_id: int) -> bool:
         port_orm = await self.session.get(PortORM, port_id)
         if not port_orm:
-            return Falsegita
+            return False
         await self.session.delete(port_orm)
         await self.session.commit()
         return True
