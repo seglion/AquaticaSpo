@@ -84,7 +84,7 @@ class ContractRepository:
         result_u = await self.session.execute(select(UserORM).where(UserORM.id == user.id))
         user_orm = result_u.scalar_one_or_none()
         if not user_orm:
-            raise ValueError("Usuario no encontrado")g
+            raise ValueError("Usuario no encontrado")
 
         if contract_orm in user_orm.contracts:
             user_orm.contracts.remove(contract_orm)
