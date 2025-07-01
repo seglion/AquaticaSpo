@@ -20,4 +20,4 @@ class RemoveContractToUserUseCase:
             raise ValueError("Usuario no encontrado")
 
         # Aquí la lógica para añadir el contrato al usuario
-        return await self.contract_repo.remove_contract_to_user(contract, user)
+        return await self.contract_repo.remove_contract_from_user(contract, user)
