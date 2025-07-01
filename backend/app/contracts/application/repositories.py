@@ -1,6 +1,6 @@
 from typing import List, Optional
 from app.contracts.domain.models import Contract
-
+from app.users.domain.models import User
 class ContractRepositoryABC:
     async def create_contract(self, contract: Contract) -> Contract:
         ...
@@ -18,4 +18,9 @@ class ContractRepositoryABC:
         ...
 
     async def list_contracts_by_user_id(self, user_id: int) -> List[Contract]:
+        ...
+    async def add_contract_to_user(self, contract: Contract, user: User) -> None:
+        ...
+
+    async def remove_contract_from_user(self, contract: Contract, user: User) -> None:
         ...
