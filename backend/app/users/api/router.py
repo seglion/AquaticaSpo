@@ -134,7 +134,7 @@ async def update_user(
     session: AsyncSession = Depends(get_db_session),
 ):
     repo = UserRepository(session)
-    use_case = UpdateUserUseCase(repo)
+    use_case = UpdateUserUseCase(repo)s
 
     # Admin actualiza todo
     if requester.is_admin:
