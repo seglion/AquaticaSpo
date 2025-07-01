@@ -1,8 +1,8 @@
 from dataclasses import dataclass
-
+from typing import Optional
 @dataclass
 class User:
-    id: int
+    id: Optional[int]
     username: str
     email: str
     hashed_password: str

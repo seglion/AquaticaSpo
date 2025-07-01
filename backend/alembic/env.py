@@ -11,9 +11,11 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 # importa tu Settings y tu Base
 from app.shared.config import settings
 from app.ports.infrastructure.base import Base
-
+from app.users.infrastructure.base import Base as userBase 
 # metadata de tu ORM
-target_metadata = Base.metadata
+from sqlalchemy import MetaData
+
+target_metadata = [Base.metadata, userBase.metadata]
 
 # carga config de alembic.ini
 config = context.config
@@ -32,11 +34,9 @@ def include_object(object_, name, type_, reflected, compare_to):
 def run_migrations_offline():
     url = config.get_main_option("sqlalchemy.url")
     context.configure(
-        url=url,
-        target_metadata=target_metadata,
-        literal_binds=True,
-        dialect_opts={"paramstyle": "named"},
-        include_object=include_object
+            connection=connection,
+    target_metadata=target_metadata,
+    include_object=include_object
     )
 
     with context.begin_transaction():
@@ -52,9 +52,9 @@ def run_migrations_online():
 
     with connectable.connect() as connection:
         context.configure(
-            connection=connection,        # aquí va la conexión creada
-            target_metadata=target_metadata,
-            include_object=include_object
+                connection=connection,
+    target_metadata=target_metadata,
+    include_object=include_object
         )
 
         with context.begin_transaction():
