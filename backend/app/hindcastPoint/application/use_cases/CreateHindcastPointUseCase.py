@@ -4,7 +4,7 @@ from app.users.domain.models import User  # para el requester
 
  # para el requester
 
-class CreateContractUseCase:
+class CreateHindcasPointtUseCase:
     def __init__(self, repo: HindcastPointRepositoryABC):
         self.repo = repo
 
