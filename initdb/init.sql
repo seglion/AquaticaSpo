@@ -17,7 +17,19 @@ CREATE TABLE IF NOT EXISTS ports (
     longitude FLOAT NOT NULL
 );
 
-CREATE TABLE contracts (
+CREATE TABLE IF NOT EXISTS forecast_systems (
+    id SERIAL PRIMARY KEY,
+    name VARCHAR(255) NOT NULL
+);
+
+INSERT INTO forecast_systems (name) VALUES ('Sistema de Previsión A');
+INSERT INTO forecast_systems (name) VALUES ('Sistema de Previsión B');
+
+
+
+
+
+CREATE TABLE IF NOT EXISTS contracts (
     id SERIAL PRIMARY KEY,
     name VARCHAR(255) NOT NULL,
     forecast_system_id INTEGER NOT NULL REFERENCES forecast_systems(id) ON DELETE CASCADE,
@@ -27,7 +39,7 @@ CREATE TABLE contracts (
 );
 
 -- Tabla intermedia entre users y contracts
-CREATE TABLE user_contracts (
+CREATE TABLE  IF NOT EXISTS user_contracts (
     user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     contract_id INTEGER NOT NULL REFERENCES contracts(id) ON DELETE CASCADE,
     PRIMARY KEY (user_id, contract_id)
@@ -45,6 +57,13 @@ ON CONFLICT DO NOTHING;
 INSERT INTO users (username, email, hashed_password, is_admin, is_employee)
 VALUES ('user1', 'user1@example.com', '$2b$12$XSI9yM9H7KTVU5j9AUKIqOBIRGc\r6NXrS5AEySHnx\XiWQ7HNONy', FALSE, TRUE)
 ON CONFLICT DO NOTHING;
+
+
+-- Insertar usuario normal
+INSERT INTO users (username, email, hashed_password, is_admin, is_employee)
+VALUES ('mvigo', 'mvigo@example.com', '$2b$12$vBwE85h4womp.Ye8NoJOJe9LCWnwURGiFJSFI2VhhrnXIUDPdqn32', FALSE, FALSE)
+ON CONFLICT DO NOTHING;
+
 
 -- Insertar puertos de ejemplo
 INSERT INTO ports (name, country, latitude, longitude) VALUES

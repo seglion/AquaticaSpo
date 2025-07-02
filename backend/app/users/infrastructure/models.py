@@ -17,10 +17,10 @@ class UserORM(Base):
     is_admin: Mapped[bool] = mapped_column(default=False)
     is_employee: Mapped[bool] = mapped_column(default=False)
 
-    contracts: Mapped[List["ContractORM"]] = relationship(
-        "ContractORM",
+    contracts: Mapped[List[ContractORM]] = relationship(
+        ContractORM,
         secondary=contract_user_association,
-        back_populates="users"
+        back_populates="users",lazy="joined"
     )
 
 # Mapper auxiliar ContractORM -> Contract (necesario para mapear la lista)

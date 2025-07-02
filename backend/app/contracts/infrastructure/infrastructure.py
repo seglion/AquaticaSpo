@@ -19,16 +19,16 @@ class ContractRepository:
 
     async def get_contract_by_id(self, contract_id: int) -> Optional[Contract]:
         result = await self.session.execute(select(ContractORM).where(ContractORM.id == contract_id))
-        contract_orm = result.scalar_one_or_none()
+        contract_orm = result.unique().scalar_one_or_none()
         return contract_orm_to_domain(contract_orm) if contract_orm else None
 
     async def list_contracts(self) -> List[Contract]:
         result = await self.session.execute(select(ContractORM))
-        return [contract_orm_to_domain(c) for c in result.scalars().all()]
+        return [contract_orm_to_domain(c) for c in result.unique().scalars().all()]
 
     async def update_contract(self, contract: Contract) -> Contract:
         result = await self.session.execute(select(ContractORM).where(ContractORM.id == contract.id))
-        contract_orm = result.scalar_one_or_none()
+        contract_orm = result.unique().scalar_one_or_none()
         if not contract_orm:
             raise ValueError("Contrato no encontrado")
 
@@ -42,14 +42,15 @@ class ContractRepository:
         await self.session.refresh(contract_orm)
         return contract_orm_to_domain(contract_orm)
 
-    async def delete_contract(self, contract_id: int) -> None:
+    async def delete_contract(self, contract_id: int) -> bool:
         result = await self.session.execute(select(ContractORM).where(ContractORM.id == contract_id))
-        contract_orm = result.scalar_one_or_none()
+        contract_orm = result.unique().scalar_one_or_none()
         if not contract_orm:
-            raise ValueError("Contrato no encontrado")
+            return False  # Aquí ya no lanzas error, solo devuelves False para que el UseCase decida qué hacer.
 
         await self.session.delete(contract_orm)
         await self.session.commit()
+        return True  # Confirmas que borró
 
     async def list_contracts_by_user_id(self, user_id: int) -> List[Contract]:
         result = await self.session.execute(select(UserORM).where(UserORM.id == user_id))
@@ -62,12 +63,12 @@ class ContractRepository:
     async def add_contract_to_user(self, contract: Contract, user: User) -> None:
         # Carga ORM de ambos
         result_c = await self.session.execute(select(ContractORM).where(ContractORM.id == contract.id))
-        contract_orm = result_c.scalar_one_or_none()
+        contract_orm = result_c.unique().scalar_one_or_none()
         if not contract_orm:
             raise ValueError("Contrato no encontrado")
 
         result_u = await self.session.execute(select(UserORM).where(UserORM.id == user.id))
-        user_orm = result_u.scalar_one_or_none()
+        user_orm = result_u.unique().scalar_one_or_none()
         if not user_orm:
             raise ValueError("Usuario no encontrado")
 
@@ -77,12 +78,12 @@ class ContractRepository:
 
     async def remove_contract_from_user(self, contract: Contract, user: User) -> None:
         result_c = await self.session.execute(select(ContractORM).where(ContractORM.id == contract.id))
-        contract_orm = result_c.scalar_one_or_none()
+        contract_orm = result_c.unique().scalar_one_or_none()
         if not contract_orm:
             raise ValueError("Contrato no encontrado")
 
         result_u = await self.session.execute(select(UserORM).where(UserORM.id == user.id))
-        user_orm = result_u.scalar_one_or_none()
+        user_orm = result_u.unique().scalar_one_or_none()
         if not user_orm:
             raise ValueError("Usuario no encontrado")
 

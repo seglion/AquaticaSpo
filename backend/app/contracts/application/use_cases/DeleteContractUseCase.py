@@ -9,4 +9,7 @@ class DeleteContractUseCase:
     async def execute(self, contract_id: int, requester: User) -> None:
         if not requester.is_admin:
             raise PermissionError("Solo admin puede borrar contratos")
-        return await self.repo.delete_contract(contract_id)
+        
+        deleted = await self.repo.delete_contract(contract_id)
+        if not deleted:
+            raise ValueError("Contrato no encontrado")

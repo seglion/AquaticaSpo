@@ -9,6 +9,8 @@ class ListContractsForUserUseCase:
 
     async def execute(self, requester: User) -> List[Contract]:
         if requester.is_admin:
-            # Admin puede ver todos, usa el otro caso de uso normal
+            # El admin puede ver todos los contratos
             return await self.repo.list_contracts()
-        return await self.repo.list_contracts_by_user_id(requester.id)
+        else:
+            # Usuario normal solo ve sus contratos asociados
+            return await self.repo.list_contracts_by_user_id(requester.id)

@@ -19,12 +19,12 @@ class UserRepository:
 
     async def get_user_by_id(self, user_id: int) -> Optional[User]:
         result = await self.session.execute(select(UserORM).where(UserORM.id == user_id))
-        user_orm = result.scalar_one_or_none()
+        user_orm = result.unique().scalar_one_or_none()
         return orm_to_domain(user_orm) if user_orm else None
 
     async def get_user_by_username(self, username: str) -> Optional[User]:
         result = await self.session.execute(select(UserORM).where(UserORM.username == username))
-        user_orm = result.scalar_one_or_none()
+        user_orm = result.unique().scalar_one_or_none()
         return orm_to_domain(user_orm) if user_orm else None
 
     async def list_users(self) -> List[User]:
@@ -33,7 +33,7 @@ class UserRepository:
 
     async def update_user(self, user: User) -> Optional[User]:
         result = await self.session.execute(select(UserORM).where(UserORM.id == user.id))
-        user_orm = result.scalar_one_or_none()
+        user_orm = result.unique().scalar_one_or_none()
 
         if not user_orm:
             return None

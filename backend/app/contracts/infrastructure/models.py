@@ -1,10 +1,11 @@
 from sqlalchemy import Column, Integer, String, Boolean, Date, ForeignKey, Table
 from sqlalchemy.orm import relationship, Mapped, mapped_column
 from app.shared.base import Base  # Asegúrate de tener tu Base aquí importada
-from app.users.infrastructure.models import User 
+from app.forecastSystems.infrastructure.models import ForecastSystemORM
 from app.contracts.domain.models import Contract
 from datetime import date
 from sqlalchemy import Date  # para mapped_column
+
 
 contract_user_association = Table(
     "user_contracts",  # nombre real de la tabla
@@ -23,10 +24,11 @@ class ContractORM(Base):
     end_date: Mapped[date] = mapped_column(Date, nullable=True)
     active: Mapped[bool] = mapped_column(default=True)
 
-    users: Mapped[list["User"]] = relationship(
-        "User",
+    users: Mapped[list["UserORM"]] = relationship(
+        "UserORM",
         secondary=contract_user_association,
-        back_populates="contracts"
+        back_populates="contracts",
+    lazy="joined"
     )
 def orm_to_domain(contract_orm: ContractORM) -> Contract:
     return Contract(
