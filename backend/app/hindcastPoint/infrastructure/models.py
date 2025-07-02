@@ -1,4 +1,4 @@
-from sqlalchemy import  String, JSON
+from sqlalchemy import  String, JSON, relationship
 from sqlalchemy.orm import Mapped, mapped_column
 from app.shared.base import Base
 from typing import Optional, List
@@ -12,6 +12,16 @@ class HindcastPointORM(Base):
     longitude: Mapped[float] = mapped_column(nullable=False)
     url: Mapped[str] = mapped_column(String, nullable=False)
     models: Mapped[Optional[List[str]]] = mapped_column(JSON, nullable=True)
+    
+    
+    
+HindcastPointORM.downloaded_data = relationship(
+    "DownloadedDataORM",
+    back_populates="hindcast_point",
+    cascade="all, delete-orphan",
+    lazy="joined"
+)    
+
 
 def orm_to_domain(orm_obj: HindcastPointORM) -> HindcastPoint:
     obj = HindcastPoint(

@@ -24,7 +24,7 @@ class ContractORM(Base):
     end_date: Mapped[date] = mapped_column(Date, nullable=True)
     active: Mapped[bool] = mapped_column(default=True)
 
-    users: Mapped[list["UserORM"]] = relationship(
+    users: Mapped[list["UserORM"]] = relationship( # type: ignore  # noqa: F821
         "UserORM",
         secondary=contract_user_association,
         back_populates="contracts",

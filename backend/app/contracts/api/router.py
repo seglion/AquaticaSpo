@@ -1,8 +1,8 @@
 from app.users.infrastructure.infrastructure import UserRepository
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status# type: ignore
 from typing import List
 
-from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.ext.asyncio import AsyncSession # type: ignore
 
 from app.shared.dependencies import get_db_session
 from app.shared.auth.dependencies import get_current_user

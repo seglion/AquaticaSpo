@@ -1,20 +1,20 @@
 from typing import List, Optional
-from app.contracts.domain.models import Contract
+from app.contracts.domain.models import Contract# type: ignore
 from app.users.domain.models import User
 class ContractRepositoryABC:
-    async def create_contract(self, contract: Contract) -> Contract:
+    async def create_contract(self, contract: Contract) -> Contract:# type: ignore
         ...
 
-    async def get_contract_by_id(self, contract_id: int) -> Optional[Contract]:
+    async def get_contract_by_id(self, contract_id: int) -> Optional[Contract]:# type: ignore
         ...
 
-    async def list_contracts(self) -> List[Contract]:
+    async def list_contracts(self) -> List[Contract]:# type: ignore
         ...
 
     async def update_contract(self, contract: Contract) -> Contract:
         ...
 
-    async def delete_contract(self, contract_id: int) -> None:
+    async def delete_contract(self, contract_id: int) -> None:# type: ignore
         ...
 
     async def list_contracts_by_user_id(self, user_id: int) -> List[Contract]:
