@@ -11,7 +11,7 @@ class DownloadedDataORM(Base):
 
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
     point_id: Mapped[int] = mapped_column(ForeignKey("hindcast_points.id", ondelete="CASCADE"), nullable=False)
-    downloaded_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, server_default=func.now())
+    downloaded_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now())
 
     data: Mapped[dict] = mapped_column(JSON, nullable=False)
 

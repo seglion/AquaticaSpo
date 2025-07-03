@@ -1,5 +1,5 @@
-from sqlalchemy import  String, JSON, relationship
-from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy import  String, JSON
+from sqlalchemy.orm import Mapped, mapped_column,relationship
 from app.shared.base import Base
 from typing import Optional, List
 from app.hindcastPoint.domain.models import HindcastPoint

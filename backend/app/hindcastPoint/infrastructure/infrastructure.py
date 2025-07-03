@@ -23,7 +23,7 @@ class HindcastPointRepository(HindcastPointRepositoryABC):
 
     async def list_hindcastPoint(self) -> List[HindcastPoint]:
         result = await self.session.execute(select(HindcastPointORM))
-        return [orm_to_domain(hp) for hp in result.scalars().all()]
+        return [orm_to_domain(hp) for hp in result.unique().scalars().all()]
 
     async def update_hindcastPoint(self, hindcastpoint: HindcastPoint) -> HindcastPoint:
         hindcast_point_orm = await self.session.get(HindcastPointORM, hindcastpoint.id)

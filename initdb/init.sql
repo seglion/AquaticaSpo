@@ -1,3 +1,6 @@
+-- Habilitar la extensión PostGIS (si no está ya habilitada)
+CREATE EXTENSION IF NOT EXISTS postgis;
+
 -- Crear tabla users
 CREATE TABLE IF NOT EXISTS users (
     id SERIAL PRIMARY KEY,
@@ -21,6 +24,48 @@ CREATE TABLE IF NOT EXISTS forecast_systems (
     id SERIAL PRIMARY KEY,
     name VARCHAR(255) NOT NULL
 );
+
+
+CREATE TABLE hindcast_points (
+    id SERIAL PRIMARY KEY,
+    latitude DOUBLE PRECISION NOT NULL,
+    longitude DOUBLE PRECISION NOT NULL,
+    url VARCHAR NOT NULL,
+    models JSON NULL
+);
+
+
+INSERT INTO hindcast_points (latitude, longitude, url, models)
+VALUES (
+    54.544587,
+    7.0,
+    'https://marine-api.open-meteo.com/v1/marine',
+    '["ERA5-OCEAN", "METEOFRANCE WAVE"]'::json
+);
+
+CREATE TABLE downloaded_data (
+    id SERIAL PRIMARY KEY,
+    downloaded_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    point_id INTEGER NOT NULL,
+    data JSONB NOT NULL,
+    CONSTRAINT fk_point FOREIGN KEY (point_id) REFERENCES hindcast_points(id) ON DELETE CASCADE
+);
+
+CREATE INDEX idx_latest_download_per_point ON downloaded_data (point_id, downloaded_at DESC);
+
+
+
+-- Crear tabla forecast_zones
+CREATE TABLE IF NOT EXISTS forecast_zones (
+    id SERIAL PRIMARY KEY,
+    name VARCHAR(255) NOT NULL UNIQUE,
+    description TEXT,
+    forecasts_system_id INTEGER NOT NULL REFERENCES forecast_systems(id) ON DELETE CASCADE, 
+    -- 'geom' puede almacenar cualquier tipo de geometría (Point, Polygon, etc.) en WGS84
+    geom GEOMETRY(Geometry, 4326) NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_forecast_zones_geom ON forecast_zones USING GIST (geom);
 
 INSERT INTO forecast_systems (name) VALUES ('Sistema de Previsión A');
 INSERT INTO forecast_systems (name) VALUES ('Sistema de Previsión B');
