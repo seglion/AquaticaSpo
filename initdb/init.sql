@@ -20,10 +20,6 @@ CREATE TABLE IF NOT EXISTS ports (
     longitude FLOAT NOT NULL
 );
 
-CREATE TABLE IF NOT EXISTS forecast_systems (
-    id SERIAL PRIMARY KEY,
-    name VARCHAR(255) NOT NULL
-);
 
 
 CREATE TABLE hindcast_points (
@@ -53,7 +49,42 @@ CREATE TABLE downloaded_data (
 
 CREATE INDEX idx_latest_download_per_point ON downloaded_data (point_id, downloaded_at DESC);
 
+CREATE TABLE IF NOT EXISTS contracts (
+    id SERIAL PRIMARY KEY,
+    name VARCHAR(255) NOT NULL,
+    forecast_system_id INTEGER NOT NULL REFERENCES forecast_systems(id) ON DELETE CASCADE,
+    start_date DATE NOT NULL DEFAULT CURRENT_DATE,
+    end_date DATE,
+    active BOOLEAN NOT NULL DEFAULT TRUE
+);
 
+
+
+
+CREATE TABLE IF NOT EXISTS forecast_systems (
+    id SERIAL PRIMARY KEY,
+    name VARCHAR(255) NOT NULL UNIQUE, -- Añadido UNIQUE para el nombre
+    description TEXT, -- Añadida una descripción opcional
+    
+    -- Claves foráneas con relación 1:1 (nullable si no todos los sistemas tienen uno)
+    contract_id INTEGER UNIQUE, -- UNIQUE para asegurar la relación 1:1 desde este lado
+    port_id INTEGER UNIQUE,     -- UNIQUE para asegurar la relación 1:1 desde este lado
+    hindcast_point_id INTEGER UNIQUE, -- UNIQUE para asegurar la relación 1:1 desde este lado
+
+    -- Restricciones de clave foránea (asegúrate de que estas tablas existan)
+    CONSTRAINT fk_contract
+        FOREIGN KEY (contract_id)
+        REFERENCES contracts(id)
+        ON DELETE SET NULL, -- O CASCADE, o RESTRICT, según tu lógica
+    CONSTRAINT fk_port
+        FOREIGN KEY (port_id)
+        REFERENCES ports(id)
+        ON DELETE SET NULL,
+    CONSTRAINT fk_hindcast_point
+        FOREIGN KEY (hindcast_point_id)
+        REFERENCES hindcast_points(id)
+        ON DELETE SET NULL
+);
 
 -- Crear tabla forecast_zones
 CREATE TABLE IF NOT EXISTS forecast_zones (
@@ -74,14 +105,7 @@ INSERT INTO forecast_systems (name) VALUES ('Sistema de Previsión B');
 
 
 
-CREATE TABLE IF NOT EXISTS contracts (
-    id SERIAL PRIMARY KEY,
-    name VARCHAR(255) NOT NULL,
-    forecast_system_id INTEGER NOT NULL REFERENCES forecast_systems(id) ON DELETE CASCADE,
-    start_date DATE NOT NULL DEFAULT CURRENT_DATE,
-    end_date DATE,
-    active BOOLEAN NOT NULL DEFAULT TRUE
-);
+
 
 -- Tabla intermedia entre users y contracts
 CREATE TABLE  IF NOT EXISTS user_contracts (
