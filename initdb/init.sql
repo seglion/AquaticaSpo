@@ -60,7 +60,7 @@ CREATE TABLE IF NOT EXISTS forecast_zones (
     id SERIAL PRIMARY KEY,
     name VARCHAR(255) NOT NULL UNIQUE,
     description TEXT,
-    forecasts_system_id INTEGER NOT NULL REFERENCES forecast_systems(id) ON DELETE CASCADE, 
+    forecast_system_id INTEGER NOT NULL REFERENCES forecast_systems(id) ON DELETE CASCADE, 
     -- 'geom' puede almacenar cualquier tipo de geometría (Point, Polygon, etc.) en WGS84
     geom GEOMETRY(Geometry, 4326) NOT NULL
 );

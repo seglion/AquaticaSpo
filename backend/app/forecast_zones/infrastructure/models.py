@@ -10,6 +10,9 @@ from sqlalchemy.sql import func # Para server_default=func.now()
 from geoalchemy2 import Geometry
 from geoalchemy2.shape import to_shape, from_shape
 from shapely.geometry import shape # Necesario para convertir el dict GeoJSON a un objeto Shapely
+from shapely.geometry import Point, Polygon, mapping # Necesitas shapely para convertir el GeoJSON
+from geoalchemy2.shape import to_shape # <--- Necesitas esto para convertir el objeto ORM geom a shapely
+from shapely.geometry import mapping  # <--- Y esto para convertir el objeto shapely a un diccionario GeoJSON
 
 # Importamos la base declarativa y el modelo de dominio
 from app.shared.base import Base # Asume que esta ruta es correcta para tu Base
@@ -57,38 +60,39 @@ class ForecastZoneORM(Base):
 
 
 def orm_to_domain(orm_obj: ForecastZoneORM) -> ForecastZone:
-    """
-    Convierte un objeto ForecastZoneORM a un modelo de dominio ForecastZone.
-    Maneja la conversión del objeto de geometría de PostGIS/GeoAlchemy2 a un diccionario GeoJSON.
-    """
-    # Convertir el objeto Geometry de geoalchemy2 a un diccionario GeoJSON
-    # to_shape convierte a un objeto Shapely, y .__geo_interface__ lo convierte a GeoJSON dict.
-    geom_geojson = to_shape(orm_obj.geom).__geo_interface__ if orm_obj.geom else None
-
-    return ForecastZone(
+    obj = ForecastZone(
         id=orm_obj.id,
         name=orm_obj.name,
         description=orm_obj.description,
         forecast_system_id=orm_obj.forecast_system_id,
-        geom=geom_geojson, # Pasa el diccionario GeoJSON al modelo de dominio
+        # --- CAMBIO CRUCIAL AQUÍ ---
+        geom=mapping(to_shape(orm_obj.geom)) if orm_obj.geom else None # Convertir de ORM geom a shapely, luego a GeoJSON dict
     )
+    return obj
 
 def domain_to_orm(domain_obj: ForecastZone) -> ForecastZoneORM:
-    """
-    Convierte un modelo de dominio ForecastZone a un objeto ForecastZoneORM.
-    Maneja la conversión del diccionario GeoJSON a un objeto de geometría de GeoAlchemy2.
-    """
-    # Convertir el diccionario GeoJSON del dominio a un objeto Geometry de geoalchemy2
-    # shape() convierte el diccionario GeoJSON a un objeto Shapely, y from_shape() lo convierte a GeoAlchemy2 Geometry.
-    geom_alchemy = from_shape(shape(domain_obj.geom)) if domain_obj.geom else None
-
     orm_obj = ForecastZoneORM(
         name=domain_obj.name,
         description=domain_obj.description,
-        forecast_system_id=domain_obj.forecast_system_id,
-        geom=geom_alchemy, # Pasa el objeto de geometría de GeoAlchemy2 al ORM
+        forecast_system_id=domain_obj.forecast_system_id
     )
-    # Asigna el ID solo si existe, útil para actualizaciones
     if domain_obj.id is not None:
         orm_obj.id = domain_obj.id
+    
+    if domain_obj.geom:
+        # Convertir el diccionario GeoJSON a un objeto shapely
+        # Luego, usar from_shape de geoalchemy2 para obtener la representación ORM
+        # ¡Asegúrate de pasar el SRID aquí!
+        if domain_obj.geom["type"] == "Point":
+            # Si es un punto, las coordenadas son [longitude, latitude]
+            shape_obj = Point(domain_obj.geom["coordinates"])
+        elif domain_obj.geom["type"] == "Polygon":
+            # Si es un polígono, las coordenadas son [[[lon, lat], ...]]
+            shape_obj = Polygon(domain_obj.geom["coordinates"][0]) # Asumiendo un solo anillo exterior
+        else:
+            raise ValueError(f"Tipo de geometría no soportado: {domain_obj.geom['type']}")
+            
+        # ¡Aquí está la clave! Establece el SRID a 4326
+        orm_obj.geom = from_shape(shape_obj, srid=4326) 
+    
     return orm_obj

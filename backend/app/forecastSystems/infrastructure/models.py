@@ -6,7 +6,7 @@ from app.forecastSystems.domain.models import ForecastSystem
 from datetime import date
 from sqlalchemy import Date  # para mapped_column
 
-
+from sqlalchemy.orm import Mapped, mapped_column,relationship
 
 
 class ForecastSystemORM(Base):
@@ -15,7 +15,12 @@ class ForecastSystemORM(Base):
     id = Column(Integer, primary_key=True, autoincrement=True)
     name = Column(String, nullable=False, unique=True)
 
-
+ForecastSystemORM.forecast_zones = relationship(
+    "ForecastZoneORM",
+    back_populates="forecast_system",
+    cascade="all, delete-orphan",
+    lazy="joined"
+)    
 def orm_to_domain(forecastSystem_orm: ForecastSystemORM) -> ForecastSystem:
     forecastSystem = ForecastSystem(
         name=forecastSystem_orm.name,
