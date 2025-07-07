@@ -7,7 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.exc import IntegrityError, NoResultFound, MultipleResultsFound
 
 # Importa el repositorio de dominio (la interfaz que estamos implementando)
-from app.forecast_system_results.domain.repositories import ForecastSystemResultRepository
+from app.forecast_system_results.application.repositories import ForecastSystemResultRepositoryABC as ForecastSystemResultRepository
 # Importa el modelo de dominio
 from app.forecast_system_results.domain.models import ForecastSystemResult
 

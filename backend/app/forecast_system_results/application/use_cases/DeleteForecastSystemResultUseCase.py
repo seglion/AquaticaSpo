@@ -21,3 +21,4 @@ class DeleteForecastSystemResultUseCase:
             raise ValueError(f"Resultado de previsión con ID {result_id} no encontrado para eliminar.")
         
         return deleted
+    
