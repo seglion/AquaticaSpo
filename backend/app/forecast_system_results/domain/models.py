@@ -11,4 +11,4 @@ class ForecastSystemResult:
     id: Optional[int]
     forecast_zone_id: int
     execution_date: datetime
-    result_data: Any # Será un diccionario que mapea al JSONB de la BD
+    result_data: Any # Será un diccionario que mapea al JSONB de la BDit
