@@ -6,7 +6,7 @@ from pydantic import ConfigDict# type: ignore
 
 class ContractBase(BaseModel):
     name: str
-    forecast_system_id: int
+
     start_date: date
     end_date: Optional[date] = None
     active: bool = True
@@ -16,7 +16,7 @@ class ContractCreate(ContractBase):
 
 class ContractUpdate(BaseModel):
     name: Optional[str] = None
-    forecast_system_id: Optional[int] = None
+
     start_date: Optional[date] = None
     end_date: Optional[date] = None
     active: Optional[bool] = None

@@ -5,21 +5,30 @@ from typing import List, Optional
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 from sqlalchemy import delete
-
+from sqlalchemy.orm import selectinload
 from app.forecastSystems.application.repositories import ForecastSystemRepositoryABC
 from app.forecastSystems.domain.models import ForecastSystem
 # Eliminamos la importación de update_orm_from_domain
-from app.forecastSystems.infrastructure.models.models import ForecastSystemORM, orm_to_domain, domain_to_orm
+from app.forecastSystems.infrastructure.models import ForecastSystemORM, orm_to_domain, domain_to_orm
 
 
 class SqlAlchemyForecastSystemRepository(ForecastSystemRepositoryABC):
+    async def getForecastSystemByContractId(self, contract_id: int) -> Optional[ForecastSystem]:
+        """
+        Obtiene un sistema de previsión por el ID de un contrato asociado.
+        Retorna None si no se encuentra ningún sistema asociado a ese contrato.
+        """
+        stmt = select(ForecastSystemORM).where(ForecastSystemORM.contract_id == contract_id)
+        result = await self.session.execute(stmt)
+        orm_system = result.scalars().first()
+        return orm_to_domain(orm_system) if orm_system else None
     """
     Concrete implementation of ForecastSystemRepositoryABC using SQLAlchemy.
     """
     def __init__(self, session: AsyncSession):
         self.session = session
 
-    async def create_forecast_system(self, system: ForecastSystem) -> ForecastSystem:
+    async def createForecastSystem(self, system: ForecastSystem) -> ForecastSystem:
         """Creates a new forecast system in the database."""
         orm_system = domain_to_orm(system)
         self.session.add(orm_system)
@@ -27,21 +36,22 @@ class SqlAlchemyForecastSystemRepository(ForecastSystemRepositoryABC):
         await self.session.refresh(orm_system) # Refreshes the ORM object with any default values (e.g., auto-generated ID)
         return orm_to_domain(orm_system)
 
-    async def get_forecast_system_by_id(self, system_id: int) -> Optional[ForecastSystem]:
+    async def getForecastSystemById(self, system_id: int) -> Optional[ForecastSystem]:
         """Gets a forecast system by its ID."""
         stmt = select(ForecastSystemORM).where(ForecastSystemORM.id == system_id)
         result = await self.session.execute(stmt)
         orm_system = result.scalars().first()
         return orm_to_domain(orm_system) if orm_system else None
 
-    async def list_forecast_systems(self) -> List[ForecastSystem]:
+    async def getAllForecastSystems(self) -> List[ForecastSystem]:
         """Lists all existing forecast systems."""
         stmt = select(ForecastSystemORM)
         result = await self.session.execute(stmt)
-        orm_systems = result.scalars().all()
+        # Usar .unique() para evitar duplicados por joined eager loading
+        orm_systems = result.unique().scalars().all()
         return [orm_to_domain(system) for system in orm_systems]
 
-    async def update_forecast_system(self, system: ForecastSystem) -> ForecastSystem:
+    async def updateForecastSystem(self, system: ForecastSystem) -> ForecastSystem:
         """
         Updates an existing forecast system.
         Since update_orm_from_domain is removed, we re-create the ORM object.
@@ -81,7 +91,7 @@ class SqlAlchemyForecastSystemRepository(ForecastSystemRepositoryABC):
         return orm_to_domain(updated_orm_system)
 
 
-    async def delete_forecast_system(self, system_id: int) -> bool:
+    async def deleteForecastSystem(self, system_id: int) -> bool:
         """
         Deletes a forecast system by its ID.
         Returns True if deleted, False otherwise.
@@ -90,9 +100,20 @@ class SqlAlchemyForecastSystemRepository(ForecastSystemRepositoryABC):
         result = await self.session.execute(stmt)
         return result.rowcount > 0
 
-    async def get_forecast_system_by_name(self, name: str) -> Optional[ForecastSystem]:
-        """Obtiene un sistema de previsión por su nombre."""
-        stmt = select(ForecastSystemORM).where(ForecastSystemORM.name == name)
+    async def get_forecast_system_by_contract_id(self, contract_id: int) -> Optional[ForecastSystem]:
+        """
+        Implementación para obtener un ForecastSystem dado el ID de un contrato.
+        """
+        stmt = (
+            select(ForecastSystemORM)
+            .where(ForecastSystemORM.contract_id == contract_id)
+            .options(
+                selectinload(ForecastSystemORM.contract),
+                selectinload(ForecastSystemORM.port),
+                selectinload(ForecastSystemORM.hindcast_point),
+                selectinload(ForecastSystemORM.forecast_zones)
+            )
+        )
         result = await self.session.execute(stmt)
-        orm_system = result.scalars().first()
-        return orm_to_domain(orm_system) if orm_system else None
+        system_orm = result.scalar_one_or_none() # Usa scalar_one_or_none para la relación UNIQUE
+        return orm_to_domain(system_orm) if system_orm else None

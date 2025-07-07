@@ -33,7 +33,7 @@ class ContractRepository:
             raise ValueError("Contrato no encontrado")
 
         contract_orm.name = contract.name
-        contract_orm.forecast_system_id = contract.forecast_system_id
+
         contract_orm.start_date = contract.start_date
         contract_orm.end_date = contract.end_date
         contract_orm.active = contract.active

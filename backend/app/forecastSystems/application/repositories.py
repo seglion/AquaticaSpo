@@ -55,10 +55,10 @@ class ForecastSystemRepositoryABC(ABC):  # <-- ¡Hereda de ABC!
         """
         pass
 
-    @abstractmethod  # <-- ¡Añade el decorador!
-    async def getForecastSystemByContractId(self, contractId: int) -> Optional[ForecastSystem]:
+    @abstractmethod
+    async def get_forecast_system_by_contract_id(self, contract_id: int) -> Optional[ForecastSystem]:
         """
-        Obtiene un sistema de previsión por el ID de un contrato asociado.
-        Retorna None si no se encuentra ningún sistema asociado a ese contrato.
+        Obtiene un ForecastSystem dado el ID de un contrato.
+        Asume que contract_id es UNIQUE en ForecastSystem, o devuelve el primero encontrado.
         """
         pass

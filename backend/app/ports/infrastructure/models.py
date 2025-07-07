@@ -1,16 +1,20 @@
 from sqlalchemy import Column, Integer, String, Float
 from app.shared.base import Base# pylint: disable=import-error
 from app.ports.domain.models import Port
-
+from sqlalchemy.orm import relationship
 class PortORM(Base):
     __tablename__ = "ports"
 
     id = Column(Integer, primary_key=True, autoincrement=True)
-    name = Column(String, nullable=False, unique=True)
+    name = Column(String, nullable=False)
     country = Column(String, nullable=False)
     latitude = Column(Float, nullable=False)
     longitude = Column(Float, nullable=False)
-
+    forecast_system_backref = relationship(
+        "ForecastSystemORM",
+        back_populates="port",
+        uselist=False
+    )
 def orm_to_domain(port_orm: PortORM) -> Port:
     port = Port(
         name=port_orm.name,

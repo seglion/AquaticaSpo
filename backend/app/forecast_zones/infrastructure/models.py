@@ -31,7 +31,7 @@ class ForecastZoneORM(Base):
     __tablename__ = "forecast_zones"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    name: Mapped[str] = mapped_column(String(255), unique=True, nullable=False)
+    name: Mapped[str] = mapped_column(String(255),  nullable=False)
     description: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     
     # Clave foránea a la tabla forecast_systems

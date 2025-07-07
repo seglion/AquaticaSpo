@@ -12,7 +12,11 @@ class HindcastPointORM(Base):
     longitude: Mapped[float] = mapped_column(nullable=False)
     url: Mapped[str] = mapped_column(String, nullable=False)
     models: Mapped[Optional[List[str]]] = mapped_column(JSON, nullable=True)
-    
+    forecast_system_backref = relationship(
+        "ForecastSystemORM",
+        back_populates="hindcast_point",
+        uselist=False
+    )    
     
     
 HindcastPointORM.downloaded_data = relationship(

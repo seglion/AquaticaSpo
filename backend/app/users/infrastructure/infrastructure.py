@@ -29,7 +29,8 @@ class UserRepository:
 
     async def list_users(self) -> List[User]:
         result = await self.session.execute(select(UserORM))
-        return [orm_to_domain(user_orm) for user_orm in result.scalars().all()]
+        # Solución: usar .unique() antes de scalars().all() para evitar duplicados por joined eager loading
+        return [orm_to_domain(user_orm) for user_orm in result.unique().scalars().all()]
 
     async def update_user(self, user: User) -> Optional[User]:
         result = await self.session.execute(select(UserORM).where(UserORM.id == user.id))
@@ -50,7 +51,7 @@ class UserRepository:
 
     async def delete_user(self, user_id: int) -> bool:
         result = await self.session.execute(select(UserORM).where(UserORM.id == user_id))
-        user_orm = result.scalar_one_or_none()
+        user_orm = result.unique().scalar_one_or_none()
         if not user_orm:
             return False
 
