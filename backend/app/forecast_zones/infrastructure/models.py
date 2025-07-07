@@ -1,6 +1,6 @@
 # app/forecast_zones/infrastructure/models.py
 from datetime import datetime
-from typing import Optional
+from typing import List, Optional
 
 from sqlalchemy import ForeignKey, Integer, String, Text, DateTime
 from sqlalchemy.orm import Mapped, mapped_column, relationship
@@ -53,6 +53,14 @@ class ForecastZoneORM(Base):
     forecast_system: Mapped["ForecastSystemORM"] = relationship( # type: ignore  # noqa: F821
         "ForecastSystemORM",
         back_populates="forecast_zones"
+    )
+    
+        # Relación: Una zona tiene muchos resultados (One-to-Many)
+    # back_populates="forecast_zone" en ForecastSystemResultORM
+    forecast_system_results: Mapped[List["ForecastSystemResultORM"]] = relationship( # type: ignore  # noqa: F821
+        "ForecastSystemResultORM",
+        back_populates="forecast_zone",
+        cascade="all, delete-orphan" # Si quieres que los resultados se borren con la zona
     )
 
     def __repr__(self):

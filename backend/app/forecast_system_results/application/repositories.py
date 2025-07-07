@@ -16,7 +16,7 @@ class ForecastSystemResultRepositoryABC(ABC):
     """
 
     @abstractmethod
-    async def create_forecast_system_result(self, data: ForecastSystemResult) -> ForecastSystemResult:
+    async def create_forecast_system_result(self, result: ForecastSystemResult) -> ForecastSystemResult:
         """
         Crea un nuevo resultado de previsión en el almacenamiento.
         
