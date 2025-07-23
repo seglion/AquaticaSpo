@@ -248,3 +248,6 @@ $RECYCLE.BIN/
 **/__pycache__/
 *.py[cod]
 .pylintrc
+
+
+*venv*

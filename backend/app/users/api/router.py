@@ -41,7 +41,7 @@ async def login(
         raise HTTPException(status_code=401, detail="Usuario o contraseña incorrectos")
 
     access_token = jwt_service.create_access_token(subject=str(user.id))
-    return {"access_token": access_token, "token_type": "bearer"}
+    return {"access_token": access_token, "token_type": "bearer", "user_id": user.id, "is_admin": user.is_admin}
 
 # AUTH GUARD
 async def is_admin_or_self(user: User, target_user_id: int):

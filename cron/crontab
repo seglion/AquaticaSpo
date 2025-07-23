@@ -1,0 +1,4 @@
+# Ejecutar el script todos los días a las 6:00 AM UTC.
+# Minuto(0) Hora(6) DíaDelMes(*) Mes(*) DíaDeLaSemana(*)
+0 6 * * * . /etc/environment; python /app/main.py >> /proc/1/fd/1 2>> /proc/1/fd/2
+# >> /proc/1/fd/1 2>> /proc/1/fd/2 redirige la salida estándar y los errores a los logs del contenedor Docker.

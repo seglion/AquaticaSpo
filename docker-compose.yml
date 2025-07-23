@@ -33,5 +33,35 @@ services:
       depends_on:
         db:
           condition: service_healthy # La API no arrancará hasta que la BD esté lista
+  cron:
+    build:
+      context: ./cron
+      dockerfile: Dockerfile
+    container_name: aquatica_cron
+    restart: always
+    env_file:
+      - ./.env
+    environment:
+      # La URL interna para que el cron se comunique con la api
+      - BACKEND_API_URL=http://api:8000
+      - RABBITMQ_HOST=rabbitmq
+    depends_on:
+      - api
+      - rabbitmq
+  rabbitmq:
+    image: rabbitmq:3.13-management-alpine
+    container_name: aquatica_rabbitmq
+    restart: always    
+    ports:
+      # Puerto para la comunicación de la aplicación (AMQP)
+      - "5672:5672"
+      # Puerto para la interfaz de gestión web
+      - "15672:15672"
+    environment:
+      # Puedes dejar los usuarios por defecto (guest/guest) para desarrollo local
+      - RABBITMQ_DEFAULT_USER=${RABBITMQ_USER}
+      - RABBITMQ_DEFAULT_PASS=${RABBITMQ_PASS}
+
+
 volumes:
   postgres_data:
