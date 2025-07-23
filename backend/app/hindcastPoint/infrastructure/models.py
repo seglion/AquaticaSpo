@@ -28,11 +28,15 @@ HindcastPointORM.downloaded_data = relationship(
 
 
 def orm_to_domain(orm_obj: HindcastPointORM) -> HindcastPoint:
+    # Si models es un string tipo 'a,b,c', conviértelo a lista
+    models = orm_obj.models
+    if isinstance(models, str):
+        models = [m.strip() for m in models.split(",") if m.strip()]
     obj = HindcastPoint(
         latitude=orm_obj.latitude,
         longitude=orm_obj.longitude,
         url=orm_obj.url,
-        models=orm_obj.models
+        models=models
     )
     obj.id = orm_obj.id
     return obj
