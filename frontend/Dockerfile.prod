@@ -1,0 +1,32 @@
+# Build de producción del frontend AquaticaSpo.
+#
+# IMPORTANTE: el contexto de build es la RAÍZ del repo (no ./frontend), porque el
+# frontend importa alert_thresholds.json desde la raíz (ver
+# frontend/src/utils/wave-colors.ts -> '../../../alert_thresholds.json'). Ese
+# import resuelve, desde /app/src/utils, a /alert_thresholds.json, así que hay que
+# colocar el fichero en la raíz del filesystem antes de compilar (igual que el
+# volumen del docker-compose de desarrollo lo monta en /alert_thresholds.json).
+
+# --- Etapa 1: build estático con Vite ---
+FROM node:20-alpine AS build-stage
+WORKDIR /app
+
+COPY frontend/package*.json ./
+RUN npm ci
+
+COPY frontend/ .
+# Umbrales de alerta compartidos, necesarios en tiempo de build (import desde la raíz).
+COPY alert_thresholds.json /alert_thresholds.json
+
+# La URL de la API se hornea en el bundle en tiempo de build.
+ARG VITE_API_BASE_URL
+ENV VITE_API_BASE_URL=$VITE_API_BASE_URL
+
+RUN npm run build
+
+# --- Etapa 2: servir los estáticos con nginx ---
+FROM nginx:stable-alpine AS production-stage
+COPY --from=build-stage /app/dist /usr/share/nginx/html
+COPY frontend/nginx.prod.conf /etc/nginx/conf.d/default.conf
+EXPOSE 80
+CMD ["nginx", "-g", "daemon off;"]

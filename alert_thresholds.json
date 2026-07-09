@@ -1,0 +1,9 @@
+{
+  "unit": "m",
+  "levels": [
+    { "level": null, "label": "Sin alerta", "color": "#6ee7b7", "max": 1 },
+    { "level": "yellow", "label": "Amarilla", "color": "#fde047", "max": 2 },
+    { "level": "orange", "label": "Naranja", "color": "#f97316", "max": 4 },
+    { "level": "red", "label": "Roja", "color": "#dc2626", "max": null }
+  ]
+}

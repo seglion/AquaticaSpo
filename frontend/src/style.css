@@ -1,0 +1,47 @@
+@import "tailwindcss";
+
+@theme {
+  /* Aquatica Theme - Light Mode (Derived from Logo) */
+  
+  /* Main Background (White/Ice) */
+  --color-sea-blue: #fcfdfd;
+
+  /* Primary Accent (Aqua Blue) - Replaces Brass */
+  --color-brass: #93b6ce;
+  --color-brass-light: #ced9e1;
+  --color-brass-dark: #707d88;
+
+  /* Secondary Accent (Slate/Gray) */
+  --color-wave-blue: #707d88;
+
+  /* Main Text (Dark Slate) - Replaces Parchment */
+  --color-parchment: #3d454d;
+  --color-slate-tech: #e2e8f0;
+}
+
+html,
+body {
+  height: 100%;
+}
+
+:root {
+  font-family: 'Inter', system-ui, sans-serif;
+  color: var(--color-parchment);
+  background-color: var(--color-sea-blue);
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  background-color: var(--color-sea-blue);
+  display: flex;
+  /* Ensures #app can grow properly */
+  flex-direction: column;
+}
+
+#app {
+  width: 100%;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}

@@ -1,0 +1,14 @@
+{
+  "default": {
+    "talud": 0.5,
+    "angulo_perpendicular": 0.0,
+    "rugosidad": 1.0,
+    "berma": 1.0,
+    "factor_seguridad": 1.21
+  },
+  "zones": {
+    "1": { "angulo_perpendicular": 33.0, "talud": 0.6667, "rugosidad": 0.47 },
+    "2": { "angulo_perpendicular": 33.0, "talud": 0.6667, "rugosidad": 0.47 },
+    "3": { "angulo_perpendicular": 33.0, "talud": 0.6667, "rugosidad": 0.47 }
+  }
+}

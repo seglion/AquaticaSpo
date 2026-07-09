@@ -1,0 +1,147 @@
+# Despliegue de producción de AquaticaSpo, pensado para convivir en el mismo
+# servidor Hetzner que LouroApp SIN tocar su stack.
+#
+# - Los contenedores públicos (frontend, api) se unen a la red externa
+#   `production_net` que ya vigila el nginx-proxy de Louro y declaran su
+#   VIRTUAL_HOST/LETSENCRYPT_HOST; acme-companion emite los certs automáticamente.
+# - El resto de servicios viven solo en `internal_net`, sin publicar puertos
+#   (evita colisiones con Louro, que ya ocupa 5432/5672/9000 y 80/443).
+# - Base de datos PROPIA (no compartida con Louro): postgis interno, sin puerto.
+#
+# Requiere un `.env` en esta misma carpeta con los secretos de producción.
+# Levantar con: docker compose -f docker-compose.prod.yml up -d --build
+
+services:
+  db:
+    image: postgis/postgis:16-3.4
+    container_name: aquatica_db
+    restart: always
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./initdb:/docker-entrypoint-initdb.d/
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - internal_net
+
+  api:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: aquatica_api
+    restart: always
+    env_file:
+      - ./.env
+    environment:
+      # Enrutado y TLS automáticos por el nginx-proxy/acme-companion de Louro.
+      - VIRTUAL_HOST=spo-api.aquatica.gal
+      - LETSENCRYPT_HOST=spo-api.aquatica.gal
+      - VIRTUAL_PORT=8000
+      - RABBITMQ_HOST=rabbitmq
+      - BACKEND_API_URL=http://api:8000
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - internal_net
+      - production_net
+
+  cron:
+    build:
+      context: ./cron
+      dockerfile: Dockerfile
+    container_name: aquatica_cron
+    restart: always
+    env_file:
+      - ./.env
+    environment:
+      - BACKEND_API_URL=http://api:8000
+      - RABBITMQ_HOST=rabbitmq
+    depends_on:
+      - api
+      - rabbitmq
+    networks:
+      - internal_net
+
+  worker:
+    build:
+      context: . # Raíz del repo, para copiar alert_thresholds.json y remonte_params.json
+      dockerfile: forecastWorker/Dockerfile
+    container_name: aquatica_worker
+    restart: always
+    env_file:
+      - ./.env
+    environment:
+      - RABBITMQ_HOST=rabbitmq
+      - BACKEND_API_URL=http://api:8000
+    depends_on:
+      - rabbitmq
+      - api
+    networks:
+      - internal_net
+
+  mailer:
+    build:
+      context: ./mailer
+      dockerfile: Dockerfile
+    container_name: aquatica_mailer
+    restart: always
+    env_file:
+      - ./.env
+    environment:
+      - RABBITMQ_HOST=rabbitmq
+      - BACKEND_API_URL=http://api:8000
+      - BINDING_KEY=forecast.#
+    depends_on:
+      - api
+      - rabbitmq
+    networks:
+      - internal_net
+
+  rabbitmq:
+    image: rabbitmq:3.13-management-alpine
+    container_name: aquatica_rabbitmq
+    restart: always
+    environment:
+      - RABBITMQ_DEFAULT_USER=${RABBITMQ_USER}
+      - RABBITMQ_DEFAULT_PASS=${RABBITMQ_PASS}
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
+    networks:
+      - internal_net
+
+  frontend:
+    build:
+      context: . # Raíz del repo (el frontend importa alert_thresholds.json de la raíz)
+      dockerfile: frontend/Dockerfile.prod
+      args:
+        - VITE_API_BASE_URL=https://spo-api.aquatica.gal
+    container_name: aquatica_frontend
+    restart: always
+    environment:
+      - VIRTUAL_HOST=spo.aquatica.gal
+      - LETSENCRYPT_HOST=spo.aquatica.gal
+    depends_on:
+      - api
+    networks:
+      - production_net
+
+networks:
+  # Red del nginx-proxy de Louro, ya existente. VERIFICAR el nombre real en el
+  # servidor con `docker network ls | grep production_net` y ajustarlo aquí.
+  production_net:
+    external: true
+    name: louroapp_production_net
+  internal_net:
+    driver: bridge
+
+volumes:
+  postgres_data:
+  rabbitmq_data:

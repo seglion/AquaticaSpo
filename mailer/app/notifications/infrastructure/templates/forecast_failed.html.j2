@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <title>Error en previsión</title>
+  <!--[if mso]>
+  <style type="text/css">
+    table { border-collapse: collapse; }
+  </style>
+  <![endif]-->
+</head>
+<body style="font-family: Arial, Helvetica, sans-serif; background-color: #f1f5f9; margin: 0; padding: 0;">
+  <!-- Preheader (oculto, resumen en la bandeja de entrada) -->
+  <div style="display: none; max-height: 0; overflow: hidden; opacity: 0; mso-hide: all;">
+    Fallo en la previsión {{ forecast_system_name or ('#' ~ forecast_system_id) }}: {{ error_message }}
+  </div>
+
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color: #f1f5f9; padding: 24px 12px;">
+    <tr>
+      <td align="center">
+        <table role="presentation" width="640" cellpadding="0" cellspacing="0" border="0" style="width: 640px; max-width: 640px; background-color: #ffffff; border-radius: 10px; overflow: hidden; border: 1px solid #e2e8f0;">
+
+          <!-- Cabecera de marca -->
+          <tr>
+            <td style="background-color: #0f172a; padding: 28px 32px; border-bottom: 3px solid #dc2626;">
+              <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
+                <tr>
+                  <td style="font-size: 20px; font-weight: bold; color: #f8fafc; letter-spacing: 0.2px;">
+                    Aquatica<span style="color: #0ea5e9;">Spo</span>
+                  </td>
+                  <td align="right" style="font-size: 12px; color: #94a3b8;">
+                    Aviso técnico interno
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+
+          <!-- Estado -->
+          <tr>
+            <td style="padding: 28px 32px 4px 32px;">
+              <table role="presentation" cellpadding="0" cellspacing="0" border="0">
+                <tr>
+                  <td style="background-color: #fef2f2; border-radius: 999px; padding: 4px 12px;">
+                    <span style="color: #dc2626; font-size: 12px; font-weight: bold; text-transform: uppercase; letter-spacing: 0.4px;">&#9888; Fallo en la ejecución</span>
+                  </td>
+                </tr>
+              </table>
+
+              <h1 style="color: #0f172a; font-size: 19px; margin: 16px 0 6px 0;">
+                {{ forecast_system_name or ('Sistema #' ~ forecast_system_id) }}
+              </h1>
+              <p style="color: #64748b; font-size: 14px; margin: 0 0 4px 0;">
+                La ejecución ha fallado el <strong style="color: #334155;">{{ failed_at | madrid_time }}</strong> (hora de Madrid)
+              </p>
+              <p style="color: #94a3b8; font-size: 12.5px; margin: 0 0 20px 0;">
+                Identificador del sistema de previsión: #{{ forecast_system_id }}
+              </p>
+            </td>
+          </tr>
+
+          <!-- Mensaje de error -->
+          <tr>
+            <td style="padding: 0 32px 8px 32px;">
+              <p style="color: #475569; font-size: 12px; font-weight: bold; text-transform: uppercase; letter-spacing: 0.5px; margin: 0 0 10px 0;">
+                Detalle del error
+              </p>
+              <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color: #fef2f2; border: 1px solid #fecaca; border-left: 4px solid #dc2626; border-radius: 6px;">
+                <tr>
+                  <td style="padding: 14px 16px;">
+                    <p style="margin: 0; color: #7f1d1d; font-size: 13.5px; font-family: 'Courier New', Courier, monospace; line-height: 1.6; word-break: break-word;">
+                      {{ error_message }}
+                    </p>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+
+          <!-- Siguiente paso -->
+          <tr>
+            <td style="padding: 20px 32px 8px 32px;">
+              <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px;">
+                <tr>
+                  <td style="padding: 14px 16px;">
+                    <p style="margin: 0; color: #334155; font-size: 13px; line-height: 1.55;">
+                      Este sistema de previsión no ha generado resultados en esta ejecución. Revisa los
+                      registros del <strong>forecastWorker</strong> para este sistema y, si el problema
+                      persiste, comprueba la disponibilidad de los datos de entrada (hindcast) y la
+                      configuración del sistema.
+                    </p>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+
+          <!-- Pie de página -->
+          <tr>
+            <td style="padding: 20px 32px 28px 32px; border-top: 1px solid #e2e8f0;">
+              <p style="color: #94a3b8; font-size: 11.5px; margin: 0;">
+                Este aviso se envía únicamente a personas administradoras y empleadas de
+                <strong style="color: #64748b;">AquaticaSpo</strong>. No respondas a este correo.
+              </p>
+            </td>
+          </tr>
+
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>
