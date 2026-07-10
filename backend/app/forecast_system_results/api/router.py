@@ -14,6 +14,7 @@ from app.users.domain.models import User # Para el usuario autenticado
 # Importa los repositorios concretos de la capa de infraestructura
 from app.forecast_system_results.infrastructure.infrastucture import SQLAlchemyForecastSystemResultRepository # Asume esta ruta y clase
 from app.forecast_zones.infrastructure.infrastructure import ForecastZoneRepository as SQLAlchemyForecastZoneRepository # Necesario para validar zonas
+from app.forecastSystems.infrastructure.infrastructure import SqlAlchemyForecastSystemRepository # Para el control de acceso por contrato
 
 # Importa los casos de uso específicos para ForecastSystemResult
 from app.forecast_system_results.application.use_cases.CreateForecastSystemResultUseCase import CreateForecastSystemResultUseCase
@@ -178,9 +179,10 @@ async def get_latest_forecast_system_result_by_zone_api(
     # Inicializa los repositorios
     result_repo = SQLAlchemyForecastSystemResultRepository(db)
     zone_repo = SQLAlchemyForecastZoneRepository(db)
+    system_repo = SqlAlchemyForecastSystemRepository(db)
 
     # Inicializa el caso de uso con los repositorios
-    get_latest_use_case = GetLatestForecastSystemResultByZoneUseCase(result_repo, zone_repo)
+    get_latest_use_case = GetLatestForecastSystemResultByZoneUseCase(result_repo, zone_repo, system_repo)
 
     try:
         # Ejecuta el caso de uso, pasando el ID de la zona y el usuario que lo solicita
