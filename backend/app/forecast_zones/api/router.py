@@ -161,8 +161,10 @@ async def list_zones_by_system_api(
     db: AsyncSession = Depends(get_db_session),
 ):
     """Lista las zonas de previsión asociadas a un sistema específico."""
+    from app.forecastSystems.infrastructure.infrastructure import SqlAlchemyForecastSystemRepository
     repo = ForecastZoneRepository(db)
-    list_for_system_use_case = ListForecastZonesForSystemUseCase(repo)
+    system_repo = SqlAlchemyForecastSystemRepository(db)
+    list_for_system_use_case = ListForecastZonesForSystemUseCase(repo, system_repo)
 
     try:
         zones = await list_for_system_use_case.execute(system_id, requester)

@@ -8,8 +8,11 @@ class GetContractUseCase:
         self.repo = repo
 
     async def execute(self, hindcastPoint_id: int, requester: Optional[User]) -> Optional[HindcastPoint]:
-        if requester is None or not getattr(requester, "is_admin", False):
-            raise PermissionError("Solo admin puede ver Puntos Hindcast")
+        # Lectura permitida a cualquier usuario autenticado: el visor necesita el
+        # punto de partida (lat/lon/modelos) del sistema de su contrato. El router
+        # ya exige login (get_current_user). No es un dato sensible por cliente.
+        if requester is None:
+            raise PermissionError("Debe estar autenticado para ver Puntos Hindcast")
 
         if not isinstance(hindcastPoint_id, int):
             raise TypeError("El id debe ser un entero")
