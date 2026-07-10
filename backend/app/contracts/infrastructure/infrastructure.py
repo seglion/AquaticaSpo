@@ -54,7 +54,9 @@ class ContractRepository:
 
     async def list_contracts_by_user_id(self, user_id: int) -> List[Contract]:
         result = await self.session.execute(select(UserORM).where(UserORM.id == user_id))
-        user_orm = result.scalar_one_or_none()
+        # .unique() es obligatorio: UserORM carga sus colecciones con joined eager
+        # load, y sin él scalar_one_or_none() lanza InvalidRequestError (->500).
+        user_orm = result.unique().scalar_one_or_none()
         if not user_orm:
             raise ValueError("Usuario no encontrado")
 
