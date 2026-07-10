@@ -14,13 +14,12 @@ class GetLatestForecastSystemResultByZoneUseCase:
         self.zone_repo = zone_repo
 
     async def execute(self, zone_id: int, requester: User) -> Optional[ForecastSystemResult]:
-        # 1. Validación de permisos
-        if not requester.is_admin:
-            # Lógica de permisos para empleados (similar a los otros casos de uso de lectura)
-            # if not await self.zone_repo.check_user_access_to_zone(requester.id, zone_id):
-            #     raise PermissionError("No tienes permiso para ver el último resultado de esta zona.")
-            if not requester.is_employee: # Si no es admin ni empleado
-                raise PermissionError("No tienes permiso para ver el último resultado de previsión.")
+        # 1. Validación de permisos.
+        # Lectura permitida a cualquier usuario autenticado (el router ya exige
+        # get_current_user), para que los CLIENTES puedan ver los resultados de las
+        # zonas de su contrato en el visor.
+        # TODO (endurecimiento): limitar a admin/empleado o a los usuarios cuyo
+        # contrato esté ligado al sistema dueño de la zona (scope multi-tenant).
 
         # 2. Validación de la existencia de la zona
         forecast_zone = await self.zone_repo.get_forecast_zone_by_id(zone_id)

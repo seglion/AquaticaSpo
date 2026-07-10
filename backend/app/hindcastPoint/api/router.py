@@ -50,8 +50,9 @@ async def get_hindcast_point(
     requester: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db_session)
 ):
-    if not requester.is_admin:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="No tienes permiso para obtener puntos hindcast")
+    # Lectura permitida a cualquier usuario autenticado: el visor necesita el
+    # punto de partida (lat/lon/modelos) del sistema de su contrato. No es un
+    # dato sensible por cliente y ya se exige estar logueado (get_current_user).
 
     repo = HindcastPointRepository(db)
     use_case = GetContractUseCase(repo)
