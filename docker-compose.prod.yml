@@ -126,8 +126,10 @@ services:
     container_name: aquatica_frontend
     restart: always
     environment:
-      - VIRTUAL_HOST=spo.aquatica.gal
-      - LETSENCRYPT_HOST=spo.aquatica.gal
+      # Servido en dos dominios; nginx-proxy admite varios hosts (coma) y
+      # acme-companion emite un único cert SAN que cubre ambos.
+      - VIRTUAL_HOST=spo.aquatica.gal,spo.aquatica.es
+      - LETSENCRYPT_HOST=spo.aquatica.gal,spo.aquatica.es
     depends_on:
       - api
     networks:
