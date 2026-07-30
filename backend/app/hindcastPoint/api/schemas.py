@@ -9,6 +9,8 @@ class HindcastPointBase(BaseModel):
     longitude: float = Field(..., ge=-180, le=180)
     url: str
     models: Optional[List[str]] = None
+    wind_url: Optional[str] = None
+    wind_models: Optional[List[str]] = None
 
 
 class HindcastPointCreate(HindcastPointBase):
@@ -20,6 +22,8 @@ class HindcastPointUpdate(BaseModel):
     longitude: Optional[float] = Field(None, ge=-180, le=180)
     url: Optional[str] = None
     models: Optional[List[str]] = None
+    wind_url: Optional[str] = None
+    wind_models: Optional[List[str]] = None
 
 
 class HindcastPointRead(HindcastPointBase):

@@ -211,6 +211,7 @@ class NotificationRepository(NotificationService):
             executed_at=event.executed_at,
             zones=zones,
             zone_map_cids=zone_map_cids,
+            wind_alert=event.wind_alert,
         )
         subject = f"[AquaticaSpo] Previsión ejecutada – {event.forecast_system_name or event.forecast_system_id}"
 

@@ -33,6 +33,7 @@ class ZoneAlert:
     alert_color: Optional[str]
     model: Optional[str]
     peak_time: Optional[str]
+    max_q: Optional[float] = None
     lon: Optional[float] = None
     lat: Optional[float] = None
     intervals: List[AlertInterval] = field(default_factory=list)
@@ -49,6 +50,7 @@ class ForecastCompletedEvent:
     contract_id: Optional[int]
     executed_at: str
     zones: List[ZoneAlert] = field(default_factory=list)
+    wind_alert: Optional[dict] = None  # {"level", "label", "color"} o None
 
     def zones_by_severity(self) -> List[ZoneAlert]:
         return sorted(self.zones, key=lambda z: _SEVERITY_ORDER.get(z.alert_level, 99))
@@ -66,6 +68,7 @@ class ForecastCompletedEvent:
             contract_id=message.get("contract_id"),
             executed_at=message.get("executed_at"),
             zones=zones,
+            wind_alert=message.get("wind_alert"),
         )
 
 

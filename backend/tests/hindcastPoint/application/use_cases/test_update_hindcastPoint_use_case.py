@@ -25,6 +25,24 @@ class TestUpdateHindCastPointUseCase:
         return HindcastPoint(id=1, latitude=10.0, longitude=20.0, url="url", models=None)
 
     @pytest.mark.asyncio
+    async def test_update_wind_fields(self, repo_mock, admin_user):
+        original = HindcastPoint(id=1, latitude=10.0, longitude=20.0, url="url")
+        repo_mock.get_hindcastPoint_by_id.return_value = original
+        repo_mock.update_hindcastPoint.return_value = HindcastPoint(
+            id=1, latitude=10.0, longitude=20.0, url="url",
+            wind_url="https://api.open-meteo.com/v1/forecast",
+            wind_models=["best_match"],
+        )
+        use_case = UpdateHindCastPointUseCase(repo_mock)
+        updated_data = {
+            "wind_url": "https://api.open-meteo.com/v1/forecast",
+            "wind_models": ["best_match"],
+        }
+        result = await use_case.execute(original.id, updated_data, admin_user)
+        assert result.wind_url == "https://api.open-meteo.com/v1/forecast"
+        assert result.wind_models == ["best_match"]
+
+    @pytest.mark.asyncio
     async def test_update_success_with_admin(self, repo_mock, admin_user, hindcast_point):
         repo_mock.get_hindcastPoint_by_id.return_value = hindcast_point
         repo_mock.update_hindcastPoint.return_value = hindcast_point

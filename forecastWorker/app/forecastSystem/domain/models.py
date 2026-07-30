@@ -20,6 +20,7 @@ class ForecastZone:
     name: str
     description: Optional[str]
     geom: dict  # Representación de la geometría (GeoJSON como diccionario, por ejemplo)
+    dock_elevation: Optional[float] = None  # Cota del dique en metros
     id: Optional[int] = None
     forecast_system_id: Optional[int] = None
 

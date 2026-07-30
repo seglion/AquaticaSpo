@@ -30,10 +30,10 @@ function modelColor(index: number): string {
 
 type RGB = [number, number, number]
 
-const HS_GREEN: { fill: RGB; text: RGB } = { fill: [167, 243, 208], text: [6, 78, 59] }     // < 1 m  → verde
-const HS_YELLOW: { fill: RGB; text: RGB } = { fill: [253, 224, 71], text: [113, 63, 18] }   // < 2 m  → amarillo
-const HS_ORANGE: { fill: RGB; text: RGB } = { fill: [249, 115, 22], text: [255, 247, 237] } // < 4 m → naranja
-const HS_RED: { fill: RGB; text: RGB } = { fill: [220, 38, 38], text: [255, 241, 242] }     // ≥ 4 m  → rojo
+const COTA_GREEN: { fill: RGB; text: RGB } = { fill: [167, 243, 208], text: [6, 78, 59] }       // ratio < 0.6
+const COTA_YELLOW: { fill: RGB; text: RGB } = { fill: [253, 224, 71], text: [113, 63, 18] }     // ratio < 0.8
+const COTA_ORANGE: { fill: RGB; text: RGB } = { fill: [249, 115, 22], text: [255, 247, 237] }   // ratio < 1.0
+const COTA_RED: { fill: RGB; text: RGB } = { fill: [220, 38, 38], text: [255, 241, 242] }       // ratio >= 1.0
 
 // ────────────────────────────────────────────────────────────────────────────
 // Helpers
@@ -54,11 +54,12 @@ function fmtShort(iso: string): string {
     }).format(d)
 }
 
-function hsColor(val: number): { fill: RGB; text: RGB } {
-    if (val < 1) return HS_GREEN
-    if (val < 2) return HS_YELLOW
-    if (val < 4) return HS_ORANGE
-    return HS_RED
+function cotaColor(val: number, dockElevation: number): { fill: RGB; text: RGB } {
+    const ratio = val / dockElevation
+    if (ratio < 0.6) return COTA_GREEN
+    if (ratio < 0.8) return COTA_YELLOW
+    if (ratio < 1.0) return COTA_ORANGE
+    return COTA_RED
 }
 
 // ────────────────────────────────────────────────────────────────────────────
@@ -131,6 +132,51 @@ async function renderChart(
 }
 
 // ────────────────────────────────────────────────────────────────────────────
+// Map image (IGN WMS orthophoto + marker)
+// ────────────────────────────────────────────────────────────────────────────
+
+const IGN_WMS_URL = 'https://www.ign.es/wms-inspire/pnoa-ma'
+const MAP_BBOX_DELTA = 0.004
+const MAP_WIDTH_PX = 600
+const MAP_HEIGHT_PX = 340
+
+async function fetchZoneMapImage(lon: number, lat: number): Promise<string | null> {
+    try {
+        const bbox = `${lon - MAP_BBOX_DELTA},${lat - MAP_BBOX_DELTA},${lon + MAP_BBOX_DELTA},${lat + MAP_BBOX_DELTA}`
+        const url = `${IGN_WMS_URL}?SERVICE=WMS&VERSION=1.1.1&REQUEST=GetMap&LAYERS=OI.OrthoimageCoverage&STYLES=&SRS=EPSG:4326&BBOX=${bbox}&WIDTH=${MAP_WIDTH_PX}&HEIGHT=${MAP_HEIGHT_PX}&FORMAT=image/png`
+
+        const resp = await fetch(url)
+        if (!resp.ok) return null
+        const blob = await resp.blob()
+        const img = await createImageBitmap(blob)
+
+        const canvas = document.createElement('canvas')
+        canvas.width = MAP_WIDTH_PX
+        canvas.height = MAP_HEIGHT_PX
+        const ctx = canvas.getContext('2d')!
+
+        // Draw orthophoto
+        ctx.drawImage(img, 0, 0)
+
+        // Draw red marker
+        const cx = MAP_WIDTH_PX / 2
+        const cy = MAP_HEIGHT_PX / 2
+        const r = 9
+        ctx.beginPath()
+        ctx.arc(cx, cy, r, 0, 2 * Math.PI)
+        ctx.fillStyle = '#dc2626'
+        ctx.fill()
+        ctx.strokeStyle = '#ffffff'
+        ctx.lineWidth = 2
+        ctx.stroke()
+
+        return canvas.toDataURL('image/png')
+    } catch {
+        return null
+    }
+}
+
+// ────────────────────────────────────────────────────────────────────────────
 // Public entry point
 // ────────────────────────────────────────────────────────────────────────────
 
@@ -142,6 +188,12 @@ export async function generateForecastPdf(
     downloadedAt: string,
 ): Promise<void> {
     if (!hourlyData.length || !models.length) return
+
+    // Solo modelo EWAM en el PDF
+    models = models.filter(m => m.toLowerCase() === 'ewam')
+    if (!models.length) return
+
+    const dockElevation = zoneInfo?.dock_elevation ?? 0
 
     const { default: jsPDF } = await import('jspdf')
     const { default: autoTable } = await import('jspdf-autotable')
@@ -163,10 +215,13 @@ export async function generateForecastPdf(
     pdf.setFont('helvetica', 'normal')
     pdf.setFontSize(8)
 
+    const lon = zoneInfo?.geom?.coordinates[0] ?? hindcastInfo?.longitude
+    const lat = zoneInfo?.geom?.coordinates[1] ?? hindcastInfo?.latitude
+
     const zoneLine = zoneInfo
-        ? `Zona: ${zoneInfo.name}  |  Lat: ${zoneInfo.geom?.coordinates[1]?.toFixed(4)}, Lon: ${zoneInfo.geom?.coordinates[0]?.toFixed(4)}`
+        ? `Zona: ${zoneInfo.name}  |  Lat: ${lat?.toFixed(4)}, Lon: ${lon?.toFixed(4)}`
         : hindcastInfo
-            ? `Punto ID: ${hindcastInfo.id}  |  Lat: ${hindcastInfo.latitude?.toFixed(4)}, Lon: ${hindcastInfo.longitude?.toFixed(4)}`
+            ? `Punto ID: ${hindcastInfo.id}  |  Lat: ${lat?.toFixed(4)}, Lon: ${lon?.toFixed(4)}`
             : ''
 
     const metaLine = `${zoneLine}  |  Datos: ${fmtFull(downloadedAt)}  |  Generado: ${new Date().toLocaleString('es-ES')}`
@@ -174,57 +229,69 @@ export async function generateForecastPdf(
 
     let y = 30
 
-    // ── Charts ──────────────────────────────────────────────────────────────
+    // ── Charts + map ────────────────────────────────────────────────────────
+    const gap = 4
+    const itemW = (PW - M * 2 - gap * 2) / 3
+
     const labels = hourlyData.map(r => fmtShort(r.time))
 
-    const hsImg = await renderChart(
-        labels,
-        models.map((m, i) => ({
-            label: m.toUpperCase(),
-            data: hourlyData.map(r => r[m]?.height ?? null),
-            color: modelColor(i),
-        })),
-        'Hs (m)',
-    )
+    const [hsImg, tpImg, mapImg] = await Promise.all([
+        renderChart(
+            labels,
+            models.map((m, i) => ({
+                label: m.toUpperCase(),
+                data: hourlyData.map(r => r[m]?.height ?? null),
+                color: modelColor(i),
+            })),
+            'Hs (m)',
+        ),
+        renderChart(
+            labels,
+            models.map((m, i) => ({
+                label: m.toUpperCase(),
+                data: hourlyData.map(r => r[m]?.period ?? null),
+                color: modelColor(i),
+            })),
+            'Tp (s)',
+        ),
+        (lon != null && lat != null) ? fetchZoneMapImage(lon, lat) : Promise.resolve(null),
+    ])
 
-    const tpImg = await renderChart(
-        labels,
-        models.map((m, i) => ({
-            label: m.toUpperCase(),
-            data: hourlyData.map(r => r[m]?.period ?? null),
-            color: modelColor(i),
-        })),
-        'Tp (s)',
-    )
+    const chartH = 48
 
-    const chartW = (PW - M * 2 - 6) / 2
-    const chartH = 56
-
-    // Chart titles
     pdf.setTextColor(51, 65, 85)
     pdf.setFont('helvetica', 'bold')
-    pdf.setFontSize(9)
-    pdf.text('Altura Significativa — Hs (m)', M, y - 1)
-    pdf.text('Periodo Pico — Tp (s)', M + chartW + 6, y - 1)
+    pdf.setFontSize(8)
 
-    pdf.addImage(hsImg, 'PNG', M, y, chartW, chartH)
-    pdf.addImage(tpImg, 'PNG', M + chartW + 6, y, chartW, chartH)
+    const titles = ['Altura Significativa — Hs (m)', 'Periodo Pico — Tp (s)', 'Localización del Punto']
+    const images = [hsImg, tpImg, mapImg]
+    for (let i = 0; i < 3; i++) {
+        const x = M + i * (itemW + gap)
+        pdf.text(titles[i]!, x, y - 1)
+        if (images[i]) {
+            pdf.addImage(images[i]!, 'PNG', x, y, itemW, chartH)
+        }
+    }
     y += chartH + 6
 
     // ── Table ───────────────────────────────────────────────────────────────
-    // Nº de columnas por modelo: Hs, Tp, Dir, Cota Ru2%, Cota Ru1%.
+    // Columnas comunes + por modelo: Hs, Tp, Dir, Cota, Q
+    const COMMON_COLS = 5  // Fecha, Marea, Vel, Ráf, Dir
     const COLS_PER_MODEL = 5
 
     const head = [
         [
             'Fecha / Hora',
             'Marea (m)',
-            ...models.flatMap(m => [
-                `${m.toUpperCase()}\nHs (m)`,
-                `${m.toUpperCase()}\nTp (s)`,
-                `${m.toUpperCase()}\nDir (°)`,
-                `${m.toUpperCase()}\nCota Ru2% (m)`,
-                `${m.toUpperCase()}\nCota Ru1% (m)`,
+            'Viento\nVel (km/h)',
+            'Viento\nRáf (km/h)',
+            'Viento\nDir (°)',
+            ...models.flatMap(() => [
+                'Hs (m)',
+                'Tp (s)',
+                'Dir (°)',
+                'Remonte\nCota (m)',
+                'Rebase\nQ (l/m/s)',
             ]),
         ],
     ]
@@ -232,12 +299,15 @@ export async function generateForecastPdf(
     const body = hourlyData.map(row => [
         fmtFull(row.time),
         row.tide != null ? Number(row.tide).toFixed(2) : '–',
+        row.windSpeed != null ? Number(row.windSpeed).toFixed(1) : '–',
+        row.windGusts != null ? Number(row.windGusts).toFixed(1) : '–',
+        row.windDirection != null ? Number(row.windDirection).toFixed(0) + '°' : '–',
         ...models.flatMap(m => [
             row[m]?.height != null ? row[m].height.toFixed(2) : '–',
             row[m]?.period != null ? row[m].period.toFixed(1) : '–',
             row[m]?.direction != null ? row[m].direction.toFixed(0) + '°' : '–',
             row[m]?.cotaRu2p != null ? row[m].cotaRu2p.toFixed(2) : '–',
-            row[m]?.cotaRu1p != null ? row[m].cotaRu1p.toFixed(2) : '–',
+            row[m]?.caudalRebase != null ? row[m].caudalRebase.toFixed(2) : '–',
         ]),
     ])
 
@@ -255,35 +325,60 @@ export async function generateForecastPdf(
             valign: 'middle',
             cellPadding: 2,
         },
-        columnStyles: { 0: { halign: 'left', minCellWidth: 28 }, 1: { halign: 'center' } },
+        columnStyles: { 0: { halign: 'left', minCellWidth: 24 } },
         alternateRowStyles: { fillColor: [248, 250, 252] },
         didParseCell(data) {
-            if (data.section !== 'body' || data.column.index <= 1) return
-            const relIdx = (data.column.index - 2) % COLS_PER_MODEL
-            // Hs es la primera columna de cada bloque de modelo (relIdx 0) -> semáforo.
-            if (relIdx === 0) {
-                const val = parseFloat(data.cell.raw as string)
-                if (isNaN(val)) return
-                const { fill, text } = hsColor(val)
-                data.cell.styles.fillColor = fill
-                data.cell.styles.textColor = text
+            if (data.section !== 'body') return
+
+            const ci = data.column.index
+            const raw = (data.cell.raw as string) ?? ''
+            const val = parseFloat(raw)
+
+            // Viento col 2 (Vel): rojo si > 50 km/h
+            if (ci === 2 && !isNaN(val) && val > 50) {
+                data.cell.styles.fillColor = [254, 202, 202]
+                data.cell.styles.textColor = [153, 27, 27]
                 data.cell.styles.fontStyle = 'bold'
                 data.cell.styles.halign = 'center'
                 return
             }
-            // Cotas de remonte (relIdx 3 y 4): acento violeta, sin semáforo de Hs.
-            if (relIdx === 3 || relIdx === 4) {
-                data.cell.styles.textColor = [124, 58, 237]
+
+            if (ci < COMMON_COLS) {
+                data.cell.styles.halign = 'center'
+                return
+            }
+
+            const modelCol = ci - COMMON_COLS
+            const relIdx = modelCol % COLS_PER_MODEL
+            // Cota de remonte (relIdx 3): semáforo según cota/dock_elevation.
+            if (relIdx === 3) {
+                if (!isNaN(val) && dockElevation > 0) {
+                    const { fill, text } = cotaColor(val, dockElevation)
+                    data.cell.styles.fillColor = fill
+                    data.cell.styles.textColor = text
+                } else {
+                    data.cell.styles.textColor = [124, 58, 237]
+                }
                 data.cell.styles.fontStyle = 'bold'
+                data.cell.styles.halign = 'center'
+            }
+            // Q (relIdx 4): rojo si > 10 l/s/m, negro si no.
+            if (relIdx === 4) {
+                if (!isNaN(val) && val > 10) {
+                    data.cell.styles.fillColor = [254, 202, 202]
+                    data.cell.styles.textColor = [153, 27, 27]
+                    data.cell.styles.fontStyle = 'bold'
+                } else {
+                    data.cell.styles.textColor = [0, 0, 0]
+                }
                 data.cell.styles.halign = 'center'
             }
         },
         willDrawCell(data) {
-            if (data.section !== 'body' || data.column.index <= 1) return
-            const relIdx = (data.column.index - 2) % COLS_PER_MODEL
-            if (relIdx !== 0) {
-                data.cell.styles.halign = 'center'
-            }
+            if (data.section !== 'body') return
+            const ci = data.column.index
+            if (ci === 2) return // ya manejado en didParseCell
+            if (ci >= COMMON_COLS) data.cell.styles.halign = 'center'
         },
     })
 

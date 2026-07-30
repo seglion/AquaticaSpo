@@ -16,10 +16,10 @@ export interface ForecastRowModelData {
   period?: number;
   /** Peak wave direction in degrees */
   direction?: number;
-  /** Cota de remonte Ru2% (runup + marea) en metros */
+  /** Cota de remonte (runup + marea) en metros */
   cotaRu2p?: number;
-  /** Cota de remonte Ru1% (runup + marea) en metros */
-  cotaRu1p?: number;
+  /** Caudal de rebase (overtopping) en l/s/m */
+  caudalRebase?: number;
 }
 
 /**
@@ -29,6 +29,12 @@ export interface ForecastRowData {
   time: string;
   /** Nivel de marea (m) para este instante, común a todos los modelos */
   tide?: number;
+  /** Velocidad del viento a 10m (km/h) */
+  windSpeed?: number;
+  /** Ráfaga de viento a 10m (km/h) */
+  windGusts?: number;
+  /** Dirección del viento a 10m (grados) */
+  windDirection?: number;
   [modelName: string]: ForecastRowModelData | string | number | undefined;
 }
 
@@ -40,11 +46,10 @@ export interface ForecastMobileCardProps {
   row: ForecastRowData;
   /** A list of valid model names to render (e.g., ['ewam', 'ncep_gfswave025']) */
   models: string[];
-  /** 
-   * A helper function to color-code wave height values dynamically. 
-   * Returns a Tailwind class string.
-   */
-  getBgColorHelper: (height?: number) => string;
+  /** Helper function for cota cell background colors */
+  getCotaColorHelper: (cotaValue?: number) => string;
+  /** Helper function for wind cell background colors */
+  getWindColorHelper: (speed?: number) => string;
   /**
    * Formats the ISO UTC timestamp into a human readable local string.
    */
@@ -69,22 +74,19 @@ const props = defineProps<ForecastMobileCardProps>();
         <div class="grid grid-cols-3 gap-2 text-center text-sm">
           
           <!-- Hs (Significant Height) -->
-          <div class="rounded-md p-1.5 flex flex-col items-center justify-center transition-colors" 
-               :class="getBgColorHelper((row[model] as ForecastRowModelData).height) || 'bg-slate-700 text-slate-300'">
+          <div class="rounded-md p-1.5 flex flex-col items-center justify-center bg-slate-700 text-slate-300">
             <span class="text-[9px] opacity-80 uppercase font-semibold">Hs (m)</span>
             <span class="font-bold mt-0.5">{{ (row[model] as ForecastRowModelData).height?.toFixed(2) ?? '-' }}</span>
           </div>
           
           <!-- Tp (Peak Period) -->
-          <div class="rounded-md p-1.5 flex flex-col items-center justify-center transition-colors" 
-               :class="getBgColorHelper((row[model] as ForecastRowModelData).height) || 'bg-slate-700 text-slate-300'">
+          <div class="rounded-md p-1.5 flex flex-col items-center justify-center bg-slate-700 text-slate-300">
             <span class="text-[9px] opacity-80 uppercase font-semibold">Tp (s)</span>
             <span class="font-bold mt-0.5">{{ (row[model] as ForecastRowModelData).period?.toFixed(1) ?? '-' }}</span>
           </div>
           
           <!-- Dir (Direction) -->
-          <div class="rounded-md p-1.5 flex flex-col items-center justify-center transition-colors"
-               :class="getBgColorHelper((row[model] as ForecastRowModelData).height) || 'bg-slate-700 text-slate-300'">
+          <div class="rounded-md p-1.5 flex flex-col items-center justify-center bg-slate-700 text-slate-300">
             <span class="text-[9px] opacity-80 uppercase font-semibold">Dir</span>
             <div class="mt-0.5 flex justify-center w-full" v-if="(row[model] as ForecastRowModelData).direction !== undefined">
               <ArrowUp
@@ -97,15 +99,40 @@ const props = defineProps<ForecastMobileCardProps>();
 
         </div>
 
-        <!-- Cota de remonte (runup + marea): valor de diseño para la zona -->
+        <!-- Cota de remonte y caudal de rebase -->
         <div class="grid grid-cols-2 gap-2 text-center text-sm mt-2">
-          <div class="rounded-md p-1.5 flex flex-col items-center justify-center bg-violet-950/40 text-violet-200 border border-violet-800/40">
-            <span class="text-[9px] opacity-80 uppercase font-semibold">Cota Ru2% (m)</span>
+          <div class="rounded-md p-1.5 flex flex-col items-center justify-center border"
+               :class="getCotaColorHelper((row[model] as ForecastRowModelData).cotaRu2p) || 'bg-violet-950/40 text-violet-200 border-violet-800/40'">
+            <span class="text-[9px] opacity-80 uppercase font-semibold">Cota (m)</span>
             <span class="font-bold mt-0.5">{{ (row[model] as ForecastRowModelData).cotaRu2p?.toFixed(2) ?? '-' }}</span>
           </div>
-          <div class="rounded-md p-1.5 flex flex-col items-center justify-center bg-violet-950/25 text-violet-300/90 border border-violet-800/30">
-            <span class="text-[9px] opacity-80 uppercase font-semibold">Cota Ru1% (m)</span>
-            <span class="font-bold mt-0.5">{{ (row[model] as ForecastRowModelData).cotaRu1p?.toFixed(2) ?? '-' }}</span>
+          <div class="rounded-md p-1.5 flex flex-col items-center justify-center border"
+               :class="((row[model] as ForecastRowModelData).caudalRebase ?? 0) > 10 ? 'bg-red-600 text-red-100' : 'bg-amber-950/30 text-amber-200 border-amber-800/30'">
+            <span class="text-[9px] opacity-80 uppercase font-semibold">Q (l/s/m)</span>
+            <span class="font-bold mt-0.5">{{ (row[model] as ForecastRowModelData).caudalRebase?.toFixed(2) ?? '-' }}</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Wind Section -->
+      <div v-if="row.windSpeed !== undefined || row.windGusts !== undefined || row.windDirection !== undefined" class="mt-3 pt-3 border-t border-slate-700/60">
+        <h4 class="text-[11px] font-bold text-emerald-400 uppercase tracking-wide mb-1.5 text-center">Viento</h4>
+        <div class="grid grid-cols-3 gap-2 text-center text-sm">
+          <div v-if="row.windSpeed !== undefined" class="rounded-md p-1.5 flex flex-col items-center justify-center border"
+               :class="getWindColorHelper(row.windSpeed as number) || 'bg-emerald-950/40 text-emerald-200 border-emerald-800/40'">
+            <span class="text-[9px] opacity-80 uppercase font-semibold">Vel (km/h)</span>
+            <span class="font-bold mt-0.5">{{ (row.windSpeed as number).toFixed(1) }}</span>
+          </div>
+          <div v-if="row.windGusts !== undefined" class="rounded-md p-1.5 flex flex-col items-center justify-center border"
+               :class="getWindColorHelper(row.windGusts as number) || 'bg-emerald-950/40 text-emerald-200 border-emerald-800/40'">
+            <span class="text-[9px] opacity-80 uppercase font-semibold">Ráf (km/h)</span>
+            <span class="font-bold mt-0.5">{{ (row.windGusts as number).toFixed(1) }}</span>
+          </div>
+          <div v-if="row.windDirection !== undefined" class="rounded-md p-1.5 flex flex-col items-center justify-center bg-emerald-950/40 text-emerald-200 border border-emerald-800/40">
+            <span class="text-[9px] opacity-80 uppercase font-semibold">Dir</span>
+            <div class="mt-0.5 flex justify-center">
+              <ArrowUp class="w-4 h-4 opacity-90 transition-transform" :style="{ transform: `rotate(${(row.windDirection as number) + 180}deg)` }" />
+            </div>
           </div>
         </div>
       </div>

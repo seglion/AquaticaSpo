@@ -7,14 +7,18 @@ import ModalHeader from '../molecules/ModalHeader.vue'
 import ForecastDesktopTable from './ForecastDesktopTable.vue'
 import ForecastMobileList from './ForecastMobileList.vue'
 import { generateForecastPdf } from '../../utils/forecastPdfGenerator'
+import { getWindTailwindClass, getCotaTailwindClass } from '../../utils/wave-colors'
 
-// Helper for background color based on wave height
-const getBgColor = (height: number | undefined) => {
-    if (height === undefined) return ''
-    if (height < 1) return 'bg-emerald-300 text-emerald-900' // Verde
-    if (height < 2) return 'bg-yellow-300 text-yellow-900' // Amarillo
-    if (height < 4) return 'bg-orange-500 text-orange-200' // Naranja (2-4m)
-    return 'bg-red-600 text-red-100' // Rojo (>4m)
+const dockElevation = computed(() => props.zoneInfo?.dock_elevation)
+
+const getCotaBgColor = (cotaValue: number | undefined): string => {
+    const de = dockElevation.value
+    if (cotaValue === undefined || !de || de <= 0) return ''
+    return getCotaTailwindClass(cotaValue / de)
+}
+
+const getWindBgColor = (speed: number | undefined): string => {
+    return getWindTailwindClass(speed)
 }
 
 const props = defineProps<{
@@ -83,9 +87,15 @@ const hourlyData = computed(() => {
                 period: h[`wave_period_${m}`]?.[i],
                 direction: h[`wave_direction_${m}`]?.[i],
                 cotaRu2p: h[`cota_ru2p_${m}`]?.[i],
-                cotaRu1p: h[`cota_ru1p_${m}`]?.[i]
+                caudalRebase: h[`caudal_rebase_${m}`]?.[i]
             }
         })
+        // Wind data (modelo-independiente)
+        if (h.wind_speed_10m !== undefined) {
+            row.windSpeed = h.wind_speed_10m[i]
+            row.windGusts = h.wind_gusts_10m?.[i]
+            row.windDirection = h.wind_direction_10m?.[i]
+        }
         return row
     })
 })
@@ -135,7 +145,8 @@ const hourlyData = computed(() => {
                 v-if="data && hourlyData.length"
                 :hourlyData="hourlyData"
                 :models="models"
-                :getBgColorHelper="getBgColor"
+                :getCotaColorHelper="getCotaBgColor"
+                :getWindColorHelper="getWindBgColor"
                 :formatDateHelper="formatDate"
             />
             
@@ -144,7 +155,8 @@ const hourlyData = computed(() => {
                 v-if="data && hourlyData.length"
                 :hourlyData="hourlyData"
                 :models="models"
-                :getBgColorHelper="getBgColor"
+                :getCotaColorHelper="getCotaBgColor"
+                :getWindColorHelper="getWindBgColor"
                 :formatDateHelper="formatDate"
             />
 

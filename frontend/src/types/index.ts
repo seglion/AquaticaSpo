@@ -31,6 +31,8 @@ export interface HindcastPoint {
     longitude: number;
     url: string;
     models: string[];
+    wind_url?: string;
+    wind_models?: string[];
 }
 
 export interface DownloadedData {
@@ -45,6 +47,7 @@ export interface ForecastZone {
     name: string;
     description?: string;
     forecast_system_id: number;
+    dock_elevation?: number;
     geom: {
         type: "Point";
         coordinates: [number, number]; // [longitude, latitude]

@@ -9,7 +9,7 @@ import pandas as pd
 from app.users.domain.models import User
 from app.forecastSystem.application.services import ForecastWorkerService
 from app.forecastSystem.domain.models import DownloadedData, ForecastSystem,ForecastZone
-from app.shared.domain.remonte import calcular_remonte
+from app.shared.domain.remonte import calcular_remonte, calcular_caudal_rebase
 from app.shared.domain.remonte_params import get_zone_remonte_params
 
 
@@ -104,11 +104,15 @@ class ForecastWorkerRepository(ForecastWorkerService):
             print(f"Error al obtener el pronóstico de partida: {e.response.text}")
             raise
 
-    async def save_forecast_results(self, system_id: int, zones: List[ForecastZone], propagation_results_json: str, requester: User) -> List[Dict[str, Any]]:
+    async def save_forecast_results(self, system_id: int, zones: List[ForecastZone], propagation_results_json: str, requester: User, wind_data: Optional[Dict[str, Any]] = None, wind_times: Optional[List[str]] = None) -> tuple[List[Dict[str, Any]], Optional[Dict[str, Any]]]:
         """Guarda los resultados de la propagación en la base de datos a través de la API.
 
-        Devuelve un resumen de alertas por zona (peor caso de Hs entre todos los
-        modelos), usado para notificar a los usuarios ligados al sistema.
+        Devuelve una tupla (zone_alerts, wind_alert):
+        - zone_alerts: resumen de alertas de cota de remonte por zona.
+        - wind_alert: alerta de viento global (None si no hay datos de viento).
+
+        Si se proporciona wind_data (diccionario con claves 'wind_speed_10m',
+        'wind_gusts_10m', 'wind_direction_10m'), se añade a los resultados de cada zona.
         """
         import json
 
@@ -149,6 +153,14 @@ class ForecastWorkerRepository(ForecastWorkerService):
                     zone_payloads[zone_id]["hourly"][f"cota_ru1p_{model}"] = params.get("CotaRu1p", [])
                     zone_payloads[zone_id]["hourly"][f"runup_ru2p_{model}"] = params.get("Ru2p", [])
                     zone_payloads[zone_id]["hourly"][f"runup_ru1p_{model}"] = params.get("Ru1p", [])
+                    zone_payloads[zone_id]["hourly"][f"caudal_rebase_{model}"] = params.get("CaudalRebase", [])
+
+        # Añadir datos de viento a cada zona (es el mismo para todas, dato puntual)
+        if wind_data:
+            for zone_id in zone_payloads:
+                for wind_key in ("wind_speed_10m", "wind_gusts_10m", "wind_direction_10m"):
+                    if wind_key in wind_data:
+                        zone_payloads[zone_id]["hourly"][wind_key] = wind_data[wind_key]
 
         # 2. Send to API for each zone
         for zone_id, result_data in zone_payloads.items():
@@ -166,26 +178,27 @@ class ForecastWorkerRepository(ForecastWorkerService):
                     print(f"Detalle: {e.response.text}")
 
         # 3. Calcular la evolución de la alerta por zona a lo largo del tiempo,
-        # usando el modelo EWAM como referencia (si no está disponible para el
-        # sistema, se usa el primer modelo que sí tenga datos). Se agrupan las
-        # horas consecutivas con el mismo nivel de alerta en intervalos, para
-        # poder ver cuánto va a durar cada nivel.
-        from app.shared.domain.alert_levels import classify_wave_alert
+        # usando la cota de remonte (CotaRu2p) del modelo EWAM como referencia.
+        # Se agrupan las horas consecutivas con el mismo nivel de alerta en
+        # intervalos, según los thresholds de cota definidos en alert_thresholds.json.
+        from app.shared.domain.alert_levels import classify_cota_alert, classify_wind_alert
 
         REFERENCE_MODEL = "ewam"
         zone_names = {zone.id: zone.name for zone in zones}
         zone_coords = {zone.id: zone.geom.get("coordinates") for zone in zones if zone.geom}
+        zone_dock = {zone.id: zone.dock_elevation for zone in zones}
         zone_alerts: List[Dict[str, Any]] = []
         for zone_id, result_data in zone_payloads.items():
             hourly = result_data["hourly"]
             times = hourly.get("time", [])
+            dock = zone_dock.get(zone_id)
 
-            model_key = f"wave_height_{REFERENCE_MODEL}"
+            model_key = f"cota_ru2p_{REFERENCE_MODEL}"
             used_model = REFERENCE_MODEL
             if model_key not in hourly:
-                fallback_key = next((k for k in hourly if k.startswith("wave_height_")), None)
+                fallback_key = next((k for k in hourly if k.startswith("cota_ru2p_")), None)
                 model_key = fallback_key
-                used_model = fallback_key[len("wave_height_"):] if fallback_key else None
+                used_model = fallback_key[len("cota_ru2p_"):] if fallback_key else None
 
             values = hourly.get(model_key, []) if model_key else []
 
@@ -193,7 +206,7 @@ class ForecastWorkerRepository(ForecastWorkerService):
             intervals: List[Dict[str, Any]] = []
             current: Optional[Dict[str, Any]] = None
             for idx, value in enumerate(values):
-                alert = classify_wave_alert(value)
+                alert = classify_cota_alert(value, dock) if dock else {"level": None, "label": "Sin alerta", "color": "#6ee7b7"}
                 if current is None or alert["level"] != current["level"]:
                     if current is not None:
                         intervals.append({
@@ -220,20 +233,33 @@ class ForecastWorkerRepository(ForecastWorkerService):
                     "max_hs": current["max_hs"],
                 })
 
-            # 3b. Resumen de cabecera: Hs máxima de todo el horizonte para ese modelo.
-            best_max_hs = None
+            # 3b. Resumen de cabecera: valor máximo de cota de remonte en todo el horizonte.
+            best_max = None
             best_time = None
             for idx, value in enumerate(values):
-                if value is not None and (best_max_hs is None or value > best_max_hs):
-                    best_max_hs = value
+                if value is not None and (best_max is None or value > best_max):
+                    best_max = value
                     best_time = times[idx] if idx < len(times) else None
 
-            alert = classify_wave_alert(best_max_hs)
+            # 3c. Caudal de rebase máximo para este modelo de referencia
+            q_key = f"caudal_rebase_{used_model}" if used_model else None
+            q_values = hourly.get(q_key, []) if q_key else []
+            max_q = None
+            for qv in q_values:
+                if qv is not None and (max_q is None or qv > max_q):
+                    max_q = qv
+
+            alert = classify_cota_alert(best_max, dock) if dock else {"level": None, "label": "Sin alerta", "color": "#6ee7b7"}
+            # Sobreescribir a rojo si el caudal de rebase supera el umbral de peligro para peatones (10 l/s/m, Allsop/Franco 2005)
+            if max_q is not None and max_q > 10:
+                alert = {"level": "red", "label": "Roja", "color": "#dc2626"}
+
             coords = zone_coords.get(zone_id)
             zone_alerts.append({
                 "zone_id": zone_id,
                 "zone_name": zone_names.get(zone_id),
-                "max_hs": best_max_hs,
+                "max_hs": best_max,
+                "max_q": max_q,
                 "alert_level": alert["level"],
                 "alert_label": alert["label"],
                 "alert_color": alert["color"],
@@ -244,7 +270,41 @@ class ForecastWorkerRepository(ForecastWorkerService):
                 "lat": coords[1] if coords else None,
             })
 
-        return zone_alerts
+        # 3d. Alerta de viento global (común a todas las zonas)
+        wind_alert = None
+        wind_intervals = []
+        if wind_data and wind_data.get("wind_speed_10m"):
+            speeds = wind_data["wind_speed_10m"]
+            best_wind = max(s for s in speeds if s is not None) if any(s is not None for s in speeds) else None
+            wind_alert = classify_wind_alert(best_wind)
+            if wind_times and len(wind_times) == len(speeds):
+                current_iv = None
+                for idx, s in enumerate(speeds):
+                    over = s is not None and s > 50
+                    if over and current_iv is None:
+                        current_iv = {"start_idx": idx, "max_speed": s}
+                    elif over and current_iv is not None and s > current_iv["max_speed"]:
+                        current_iv["max_speed"] = s
+                    elif not over and current_iv is not None:
+                        current_iv["end_idx"] = idx
+                        wind_intervals.append({
+                            "start_time": wind_times[current_iv["start_idx"]],
+                            "end_time": wind_times[current_iv["end_idx"]],
+                            "max_wind_speed": current_iv["max_speed"],
+                        })
+                        current_iv = None
+                if current_iv is not None:
+                    wind_intervals.append({
+                        "start_time": wind_times[current_iv["start_idx"]],
+                        "end_time": wind_times[-1],
+                        "max_wind_speed": current_iv["max_speed"],
+                    })
+
+        if wind_alert is None:
+            wind_alert = {}
+        wind_alert["intervals"] = wind_intervals
+
+        return zone_alerts, wind_alert
 
     async def calibration_hindcast_data(self, download_data: DownloadedData,hinccast_point_id: int,requester :User) -> Any:
         """
@@ -531,6 +591,17 @@ class ForecastWorkerRepository(ForecastWorkerService):
                     factor_seguridad=rp["factor_seguridad"],
                 )
 
+                caudal = calcular_caudal_rebase(
+                    hs=H_wave,
+                    tp=Tp_wave,
+                    dir_oleaje=D_wave,
+                    marea=level_series,
+                    cota_coronacion=zona.dock_elevation or 15.70,
+                    talud=rp["talud"],
+                    angulo_perpendicular=rp["angulo_perpendicular"],
+                    rugosidad=rp["rugosidad"],
+                )
+
                 # 7. Crear y almacenar el DataFrame de resultados para el punto y modelo actual.
                 zone_name = zones[pto].name
                 point_forecast_df = pd.DataFrame({
@@ -542,6 +613,7 @@ class ForecastWorkerRepository(ForecastWorkerService):
                     'Ru1p': remonte['ru1p'],
                     'CotaRu2p': remonte['cota_ru2p'],
                     'CotaRu1p': remonte['cota_ru1p'],
+                    'CaudalRebase': caudal,
                 }, index=df.index)
 
                 forecast_results[modelo][zone_name] = point_forecast_df

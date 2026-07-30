@@ -12,6 +12,8 @@ class HindcastPointORM(Base):
     longitude: Mapped[float] = mapped_column(nullable=False)
     url: Mapped[str] = mapped_column(String, nullable=False)
     models: Mapped[Optional[List[str]]] = mapped_column(JSON, nullable=True)
+    wind_url: Mapped[Optional[str]] = mapped_column(String, nullable=True)
+    wind_models: Mapped[Optional[List[str]]] = mapped_column(JSON, nullable=True)
     forecast_system_backref = relationship(
         "ForecastSystemORM",
         back_populates="hindcast_point",
@@ -32,11 +34,16 @@ def orm_to_domain(orm_obj: HindcastPointORM) -> HindcastPoint:
     models = orm_obj.models
     if isinstance(models, str):
         models = [m.strip() for m in models.split(",") if m.strip()]
+    wind_models = orm_obj.wind_models
+    if isinstance(wind_models, str):
+        wind_models = [m.strip() for m in wind_models.split(",") if m.strip()]
     obj = HindcastPoint(
         latitude=orm_obj.latitude,
         longitude=orm_obj.longitude,
         url=orm_obj.url,
-        models=models
+        models=models,
+        wind_url=orm_obj.wind_url,
+        wind_models=wind_models
     )
     obj.id = orm_obj.id
     return obj
@@ -46,7 +53,9 @@ def domain_to_orm(domain_obj: HindcastPoint) -> HindcastPointORM:
         latitude=domain_obj.latitude,
         longitude=domain_obj.longitude,
         url=domain_obj.url,
-        models=domain_obj.models
+        models=domain_obj.models,
+        wind_url=domain_obj.wind_url,
+        wind_models=domain_obj.wind_models
     )
     if domain_obj.id is not None:
         orm_obj.id = domain_obj.id

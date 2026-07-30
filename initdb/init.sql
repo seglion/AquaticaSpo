@@ -89,6 +89,7 @@ CREATE TABLE IF NOT EXISTS forecast_zones (
     name VARCHAR(255) NOT NULL UNIQUE,
     geom GEOMETRY(Geometry, 4326) NULL, -- Cambiado de 'location_geometry' a 'geom'
     description TEXT NULL,
+    dock_elevation DOUBLE PRECISION NULL,
     forecast_system_id INTEGER NOT NULL,
     CONSTRAINT fk_forecast_system_zone
         FOREIGN KEY (forecast_system_id)

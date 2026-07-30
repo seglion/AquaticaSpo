@@ -2,7 +2,7 @@
 from datetime import datetime
 from typing import List, Optional
 
-from sqlalchemy import ForeignKey, Integer, String, Text, DateTime
+from sqlalchemy import ForeignKey, Integer, String, Text, DateTime, Float
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy.sql import func # Para server_default=func.now()
 
@@ -39,9 +39,9 @@ class ForecastZoneORM(Base):
     forecast_system_id: Mapped[int] = mapped_column(
         Integer, ForeignKey("forecast_systems.id", ondelete="CASCADE"), nullable=False
     )
-    
 
-    
+    dock_elevation: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+
     # Columna de geometría con PostGIS.
     # Mapped[Geometry] indica que se mapea a un objeto de geometría de geoalchemy2
     geom: Mapped[Geometry] = mapped_column(Geometry(geometry_type='Geometry', srid=4326), nullable=False)
@@ -73,6 +73,7 @@ def orm_to_domain(orm_obj: ForecastZoneORM) -> ForecastZone:
         name=orm_obj.name,
         description=orm_obj.description,
         forecast_system_id=orm_obj.forecast_system_id,
+        dock_elevation=orm_obj.dock_elevation,
         # --- CAMBIO CRUCIAL AQUÍ ---
         geom=mapping(to_shape(orm_obj.geom)) if orm_obj.geom else None # Convertir de ORM geom a shapely, luego a GeoJSON dict
     )
@@ -86,6 +87,9 @@ def domain_to_orm(domain_obj: ForecastZone) -> ForecastZoneORM:
     )
     if domain_obj.id is not None:
         orm_obj.id = domain_obj.id
+    
+    if domain_obj.dock_elevation is not None:
+        orm_obj.dock_elevation = domain_obj.dock_elevation
     
     if domain_obj.geom:
         # Convertir el diccionario GeoJSON a un objeto shapely

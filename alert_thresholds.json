@@ -1,9 +1,20 @@
 {
   "unit": "m",
   "levels": [
-    { "level": null, "label": "Sin alerta", "color": "#6ee7b7", "max": 1 },
-    { "level": "yellow", "label": "Amarilla", "color": "#fde047", "max": 2 },
+    { "level": "light_green", "label": "Seguro", "color": "#86efac", "max": 1 },
+    { "level": "dark_green", "label": "Precaución", "color": "#15803d", "max": 2 },
     { "level": "orange", "label": "Naranja", "color": "#f97316", "max": 4 },
     { "level": "red", "label": "Roja", "color": "#dc2626", "max": null }
+  ],
+  "wind_unit": "km/h",
+  "wind_levels": [
+    { "level": null, "label": "Sin alerta", "color": "#6ee7b7", "max": 50 },
+    { "level": "red", "label": "Roja", "color": "#dc2626", "max": null }
+  ],
+  "cota_unit": "ratio",
+  "cota_levels": [
+    { "level": "light_green", "label": "Seguro", "color": "#86efac", "max": 0.494 },
+    { "level": "dark_green", "label": "Precaución", "color": "#15803d", "max": 1.0 },
+    { "level": "orange", "label": "Naranja", "color": "#f97316", "max": null }
   ]
 }

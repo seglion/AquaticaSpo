@@ -1,5 +1,4 @@
-from ast import Dict
-from typing import List, Any, Dict
+from typing import List, Any, Dict, Optional
 from app.users.domain.models import User
 from abc import ABC, abstractmethod
 from app.forecastSystem.domain.models import DownloadedData, ForecastSystem

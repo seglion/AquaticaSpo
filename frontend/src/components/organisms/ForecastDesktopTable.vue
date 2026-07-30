@@ -11,8 +11,10 @@ export interface ForecastDesktopTableProps {
   hourlyData: ForecastRowData[];
   /** List of model names */
   models: string[];
-  /** Helper function for cell background colors */
-  getBgColorHelper: (height?: number) => string;
+  /** Helper function for cota cell background colors */
+  getCotaColorHelper: (cotaValue?: number) => string;
+  /** Helper function for wind cell background colors */
+  getWindColorHelper: (speed?: number) => string;
   /** Helper function to format dates */
   formatDateHelper: (iso: string) => string;
 }
@@ -32,6 +34,10 @@ defineProps<ForecastDesktopTableProps>();
         <th v-for="model in models" :key="model" class="p-3 border-b border-slate-700 font-medium text-center border-l border-slate-700" colspan="5">
           <span class="uppercase tracking-wider text-xs font-bold text-sky-400">{{ model }}</span>
         </th>
+        <!-- Wind column group -->
+        <th class="p-3 border-b border-slate-700 font-medium text-center border-l border-slate-700" colspan="3">
+          <span class="uppercase tracking-wider text-xs font-bold text-emerald-400">Viento</span>
+        </th>
       </tr>
       <tr>
         <th class="p-2 border-b border-slate-750 sticky left-0 bg-slate-800 z-20"></th>
@@ -40,9 +46,13 @@ defineProps<ForecastDesktopTableProps>();
           <th class="p-2 border-b border-slate-750 text-center text-xs text-slate-400 border-l border-slate-800">Hs (m)</th>
           <th class="p-2 border-b border-slate-750 text-center text-xs text-slate-400">Tp (s)</th>
           <th class="p-2 border-b border-slate-750 text-center text-xs text-slate-400">Dir</th>
-          <th class="p-2 border-b border-slate-750 text-center text-xs text-violet-300 border-l border-slate-800">Cota Ru2% (m)</th>
-          <th class="p-2 border-b border-slate-750 text-center text-xs text-violet-300/80">Cota Ru1% (m)</th>
+          <th class="p-2 border-b border-slate-750 text-center text-xs text-violet-300 border-l border-slate-800">Cota (m)</th>
+          <th class="p-2 border-b border-slate-750 text-center text-xs text-amber-300">Q (l/s/m)</th>
         </template>
+        <!-- Wind sub-headers -->
+        <th class="p-2 border-b border-slate-750 text-center text-xs text-emerald-300 border-l border-slate-800">Vel (km/h)</th>
+        <th class="p-2 border-b border-slate-750 text-center text-xs text-emerald-300/80">Ráf (km/h)</th>
+        <th class="p-2 border-b border-slate-750 text-center text-xs text-emerald-300/80">Dir</th>
       </tr>
     </thead>
     <tbody class="divide-y divide-slate-800">
@@ -55,32 +65,46 @@ defineProps<ForecastDesktopTableProps>();
         </td>
         <template v-for="model in models" :key="model + '_' + idx">
           <!-- Hs -->
-          <td class="p-2 text-center border-l border-slate-800/50 font-medium" 
-              :class="getBgColorHelper((row[model] as ForecastRowModelData).height)">
+          <td class="p-2 text-center border-l border-slate-800/50 font-medium text-slate-300 bg-slate-800/30">
             {{ (row[model] as ForecastRowModelData).height?.toFixed(2) }}
           </td>
           <!-- Tp -->
-          <td class="p-2 text-center"
-              :class="getBgColorHelper((row[model] as ForecastRowModelData).height)">
+          <td class="p-2 text-center text-slate-300 bg-slate-800/20">
             {{ (row[model] as ForecastRowModelData).period?.toFixed(1) }}
           </td>
           <!-- Dir -->
-          <td class="p-2 text-center"
-              :class="getBgColorHelper((row[model] as ForecastRowModelData).height)">
+          <td class="p-2 text-center text-slate-300 bg-slate-800/10">
             <div class="flex items-center justify-center" v-if="(row[model] as ForecastRowModelData).direction !== undefined">
               <ArrowUp class="w-4 h-4 opacity-70 transition-transform" :style="{ transform: `rotate(${((row[model] as ForecastRowModelData).direction ?? 0) + 180}deg)` }" />
             </div>
             <span v-else>-</span>
           </td>
-          <!-- Cota de remonte Ru2% (runup + marea) -->
-          <td class="p-2 text-center border-l border-slate-800 text-violet-200 font-medium bg-violet-950/20">
+          <!-- Cota de remonte (runup + marea) -->
+          <td class="p-2 text-center border-l border-slate-800 font-medium"
+              :class="getCotaColorHelper((row[model] as ForecastRowModelData).cotaRu2p) || 'text-violet-200 bg-violet-950/20'">
             {{ (row[model] as ForecastRowModelData).cotaRu2p?.toFixed(2) ?? '-' }}
           </td>
-          <!-- Cota de remonte Ru1% -->
-          <td class="p-2 text-center text-violet-300/90 bg-violet-950/10">
-            {{ (row[model] as ForecastRowModelData).cotaRu1p?.toFixed(2) ?? '-' }}
+          <!-- Caudal de rebase (overtopping) -->
+          <td class="p-2 text-center font-medium"
+              :class="((row[model] as ForecastRowModelData).caudalRebase ?? 0) > 10 ? 'bg-red-600 text-red-100' : 'bg-amber-950/30 text-amber-200'">
+            {{ (row[model] as ForecastRowModelData).caudalRebase?.toFixed(2) ?? '-' }}
           </td>
         </template>
+        <!-- Wind data cells -->
+        <td class="p-2 text-center border-l border-slate-800 font-medium"
+            :class="getWindColorHelper(row.windSpeed as number | undefined)">
+          {{ (row.windSpeed as number | undefined)?.toFixed(1) ?? '-' }}
+        </td>
+        <td class="p-2 text-center"
+            :class="getWindColorHelper(row.windGusts as number | undefined)">
+          {{ (row.windGusts as number | undefined)?.toFixed(1) ?? '-' }}
+        </td>
+        <td class="p-2 text-center text-emerald-200/80 bg-emerald-950/10">
+          <div class="flex items-center justify-center" v-if="row.windDirection !== undefined">
+            <ArrowUp class="w-4 h-4 opacity-70 transition-transform" :style="{ transform: `rotate(${(row.windDirection as number) + 180}deg)` }" />
+          </div>
+          <span v-else>-</span>
+        </td>
       </tr>
     </tbody>
   </table>

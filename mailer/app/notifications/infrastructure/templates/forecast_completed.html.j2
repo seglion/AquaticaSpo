@@ -70,9 +70,63 @@
                     <p style="margin: 0; color: #7c2d12; font-size: 13.5px; line-height: 1.5;">
                       <strong>&#9888; Atención:</strong>
                       {{ critical_zones|length }} zona{{ 's' if critical_zones|length != 1 else '' }}
-                      con oleaje en nivel {{ 'rojo' if worst_color == '#dc2626' else 'naranja' }} o superior.
+                      con remonte en nivel {{ 'rojo' if worst_color == '#dc2626' else 'naranja' }} o superior.
                       Revisa el detalle a continuación.
                     </p>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+          {% endif %}
+
+          {% set overtopping_zones = zones | selectattr('max_q', 'gt', 10) | list %}
+          {% if overtopping_zones %}
+          <!-- Banner de rebase -->
+          <tr>
+            <td style="padding: 0 32px 8px 32px;">
+              <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color: #fef2f2; border: 1px solid #fecaca; border-left: 4px solid #dc2626; border-radius: 6px;">
+                <tr>
+                  <td style="padding: 14px 16px;">
+                    <p style="margin: 0; color: #7f1d1d; font-size: 13.5px; line-height: 1.5;">
+                      <strong>&#9888; Rebase:</strong>
+                      {{ overtopping_zones|length }} zona{{ 's' if overtopping_zones|length != 1 else '' }}
+                      con caudal de rebase peligroso para peatones (&gt; 10 l/s/m).
+                    </p>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+          {% endif %}
+
+          {% if wind_alert and wind_alert.level == 'red' %}
+          <!-- Banner de viento -->
+          <tr>
+            <td style="padding: 0 32px 8px 32px;">
+              <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color: #fef2f2; border: 1px solid #fecaca; border-left: 4px solid #dc2626; border-radius: 6px;">
+                <tr>
+                  <td style="padding: 14px 16px;">
+                    <p style="margin: 0; color: #7f1d1d; font-size: 13.5px; line-height: 1.5;">
+                      <strong>&#9888; Viento:</strong>
+                      Se esperan vientos fuertes (&gt; 50 km/h).
+                    </p>
+                    {% set wind_ivs = wind_alert.get('intervals', []) %}
+                    {% if wind_ivs %}
+                    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-top: 10px;">
+                      {% for iv in wind_ivs %}
+                      <tr>
+                        <td style="padding: 3px 0; color: #7f1d1d; font-size: 12px;">
+                          &#10148;
+                          {{ iv.start_time | madrid_time if iv.start_time else '-' }}
+                          &rarr;
+                          {{ iv.end_time | madrid_time if iv.end_time else '-' }}
+                          &nbsp;(&#8776; {{ '%.0f'|format(iv.max_wind_speed) }} km/h)
+                        </td>
+                      </tr>
+                      {% endfor %}
+                    </table>
+                    {% endif %}
                   </td>
                 </tr>
               </table>
@@ -102,7 +156,12 @@
                           <td style="color: #0f172a; font-size: 14.5px; font-weight: bold;">
                             {{ zone.zone_name or 'Zona sin nombre' }}
                           </td>
-                          <td align="right">
+                          <td align="right" style="vertical-align: middle;">
+                            {% if zone.max_q is not none and zone.max_q > 0 %}
+                            <span style="display: inline-block; padding: 3px 8px; border-radius: 5px; font-size: 11px; font-weight: bold; background-color: #fef2f2; color: #991b1b; border: 1px solid #fecaca; margin-right: 5px; vertical-align: middle;">
+                              Q: {{ "%.1f"|format(zone.max_q) }} l/s/m
+                            </span>
+                            {% endif %}
                             <span style="display: inline-block; padding: 3px 11px; border-radius: 999px; font-size: 11.5px; font-weight: bold; background-color: {{ zone.alert_color or '#94a3b8' }}; color: {{ badge_text }}; white-space: nowrap;">
                               {{ zone.alert_label or 'Sin alerta' }}
                             </span>
@@ -141,7 +200,7 @@
                                     {{ iv.start_time | madrid_time if iv.start_time else '-' }} &rarr; {{ iv.end_time | madrid_time if iv.end_time else '-' }}
                                   </span>
                                 </td>
-                                <td align="right" style="color: #1e293b; font-size: 12px; font-weight: bold; white-space: nowrap;">
+                                <td align="right" style="color: #1e293b; font-size: 12px; font-weight: bold; white-space: nowrap; padding-right: 4px;">
                                   {{ "%.2f"|format(iv.max_hs) ~ " m" if iv.max_hs is not none else "-" }}
                                 </td>
                               </tr>

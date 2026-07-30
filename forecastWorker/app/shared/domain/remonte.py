@@ -124,3 +124,54 @@ def calcular_remonte(
         "cota_ru2p": cota_ru2p,
         "cota_ru1p": cota_ru1p,
     }
+
+
+def calcular_caudal_rebase(
+    hs: np.ndarray,
+    tp: np.ndarray,
+    dir_oleaje: np.ndarray,
+    marea: np.ndarray,
+    cota_coronacion: float,
+    talud: float,
+    angulo_perpendicular: float,
+    rugosidad: float,
+) -> np.ndarray:
+    """Calcula el caudal medio de rebase (overtopping) con la fórmula EurOtop II (2018).
+
+    Ecuación 4.3 (pág. 75 del manual EurOtop 2018):
+
+    q / sqrt(g · Hm₀³) = 0.023 / sqrt(tan α) · ξₘ₋₁,₀ · exp[-(2.7 · Rc / (ξₘ₋₁,₀ · Hm₀ · γf · γβ))¹·³]
+
+    con cota superior (plunging/spilling limit):
+    q / sqrt(g · Hm₀³) = 0.09 · exp[-(1.5 · Rc / (Hm₀ · γf · γβ))¹·³]
+
+    Se devuelve el mínimo de ambos (l/s/m).
+    """
+    hs = np.asarray(hs, dtype=float)
+    tp = np.asarray(tp, dtype=float)
+    dir_oleaje = np.asarray(dir_oleaje, dtype=float)
+    marea = np.asarray(marea, dtype=float)
+
+    beta = np.arctan(talud)
+    Tm_menos1_0 = 0.8572 * tp
+    Lm_menos1_0 = _G * Tm_menos1_0 ** 2 / (2 * np.pi)
+
+    Ir = np.tan(beta) / np.sqrt(np.maximum(hs, 0.001) / Lm_menos1_0)
+    Ir = np.maximum(Ir, 0.1)
+
+    diff = (angulo_perpendicular - dir_oleaje + 180.0) % 360.0 - 180.0
+    angulo_ataque = np.abs(diff)
+    angulo_ataque_sat = np.minimum(angulo_ataque, 80.0)
+    gamma_beta = 1 - 0.0022 * angulo_ataque_sat
+
+    gamma = rugosidad * gamma_beta
+
+    Rc = np.maximum(cota_coronacion - marea, 0.01)
+
+    q1 = 0.023 / np.sqrt(np.tan(beta)) * Ir * np.exp(-np.clip((2.7 * Rc / (np.maximum(Ir * hs * gamma, 0.001))) ** 1.3, None, 50))
+    q2 = 0.09 * np.exp(-np.clip((1.5 * Rc / (np.maximum(hs * gamma, 0.001))) ** 1.3, None, 50))
+
+    q = np.minimum(q1, q2) * np.sqrt(_G * hs ** 3)
+    q = np.maximum(q, 0.0)
+
+    return q * 1000

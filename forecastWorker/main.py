@@ -95,13 +95,24 @@ async def process_async_task(forecast_id: int, data_id: int, repo: ForecastWorke
             hypercube=hypercube
         )
         
+        # Extraer datos de viento del hindcast original (si existen)
+        wind_data = None
+        hourly_data = hindcast_data.data.get("hourly", {}) if hindcast_data.data else {}
+        wind_keys = ["wind_speed_10m", "wind_gusts_10m", "wind_direction_10m"]
+        wind_times = hourly_data.get("time", []) if hindcast_data.data else []
+        if any(k in hourly_data for k in wind_keys):
+            wind_data = {k: hourly_data[k] for k in wind_keys if k in hourly_data}
+            logging.info(f"   ✔ Datos de viento encontrados en la descarga.")
+
         # 7. Guardar Resultados
         logging.info(f"7. Guardando resultados de propagación en la base de datos...")
-        zone_alerts = await repo.save_forecast_results(
+        zone_alerts, wind_alert = await repo.save_forecast_results(
             system_id=forecast_id,
             zones=zones,
             propagation_results_json=propagation_results_json,
-            requester=requester
+            requester=requester,
+            wind_data=wind_data,
+            wind_times=wind_times
         )
         logging.info(f"   ✔ Propagación completada y resultados guardados.")
         # Logging truncado para no saturar
@@ -116,6 +127,7 @@ async def process_async_task(forecast_id: int, data_id: int, repo: ForecastWorke
             "contract_id": system.contract_id,
             "executed_at": datetime.now(timezone.utc).isoformat(),
             "zones": zone_alerts,
+            "wind_alert": wind_alert,
         }
         _publish_forecast_event(f"forecast.completed.{forecast_id}", success_payload)
 

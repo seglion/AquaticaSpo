@@ -23,6 +23,25 @@ async def test_create_hindcast_point_success():
     assert result.url == hindcast_point.url
 
 @pytest.mark.asyncio
+async def test_create_hindcast_point_with_wind_fields():
+    repo_mock = AsyncMock()
+    expected = HindcastPoint(
+        latitude=1.0, longitude=2.0, url="https://marine-api.open-meteo.com/v1/marine",
+        models=["wavewatch3"],
+        wind_url="https://api.open-meteo.com/v1/forecast",
+        wind_models=["best_match"],
+    )
+    repo_mock.create_hindcastPoint = AsyncMock(return_value=expected)
+
+    use_case = CreateHindcasPointtUseCase(repo_mock)
+    requester = User(id=1, username="admin", is_admin=True, email="a@a.com", hashed_password="x", is_employee=False)
+
+    result = await use_case.execute(expected, requester)
+    repo_mock.create_hindcastPoint.assert_awaited_once_with(expected)
+    assert result.wind_url == "https://api.open-meteo.com/v1/forecast"
+    assert result.wind_models == ["best_match"]
+
+@pytest.mark.asyncio
 async def test_create_hindcast_point_permission_error():
     repo_mock = AsyncMock()
     use_case = CreateHindcasPointtUseCase(repo_mock)

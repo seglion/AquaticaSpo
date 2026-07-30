@@ -4,11 +4,6 @@ from typing import Any, Dict, List, Optional
 
 
 def _find_thresholds_file() -> str:
-    """
-    Localiza 'alert_thresholds.json'. En Docker se copia junto a main.py
-    (mismo nivel que forecastWorker/), en desarrollo local vive en la raíz
-    del repo, un nivel por encima de forecastWorker/.
-    """
     here = os.path.dirname(os.path.abspath(__file__))
     candidates = [
         os.path.join(here, "..", "..", "..", "alert_thresholds.json"),
@@ -24,31 +19,41 @@ def _find_thresholds_file() -> str:
     )
 
 
-def _load_levels() -> List[Dict[str, Any]]:
+def _load_config() -> Dict[str, Any]:
     with open(_find_thresholds_file(), "r", encoding="utf-8") as f:
-        config = json.load(f)
-    return config["levels"]
+        return json.load(f)
 
 
-_LEVELS = _load_levels()
+_CONFIG = _load_config()
+_LEVELS = _CONFIG["levels"]
+_WIND_LEVELS = _CONFIG.get("wind_levels", [])
+_COTA_LEVELS = _CONFIG.get("cota_levels", [])
 
 
-def classify_wave_alert(height: Optional[float]) -> Dict[str, Any]:
-    """
-    Clasifica una altura de ola (Hs, en metros) según los tramos definidos
-    en alert_thresholds.json, devolviendo {"level", "label", "color"}.
-    """
-    if height is None:
-        height = 0.0
-
-    for tier in _LEVELS:
-        if tier["max"] is None or height < tier["max"]:
+def _classify(value: Optional[float], levels: List[Dict[str, Any]]) -> Dict[str, Any]:
+    if value is None:
+        value = 0.0
+    for tier in levels:
+        if tier["max"] is None or value < tier["max"]:
             return {
                 "level": tier["level"],
                 "label": tier["label"],
                 "color": tier["color"],
             }
-
-    # No debería alcanzarse: el último tramo siempre tiene max=None.
-    last = _LEVELS[-1]
+    last = levels[-1]
     return {"level": last["level"], "label": last["label"], "color": last["color"]}
+
+
+def classify_wave_alert(height: Optional[float]) -> Dict[str, Any]:
+    return _classify(height, _LEVELS)
+
+
+def classify_cota_alert(cota_value: Optional[float], dock_elevation: float) -> Dict[str, Any]:
+    if cota_value is None or dock_elevation <= 0:
+        return {"level": None, "label": "Sin alerta", "color": "#6ee7b7"}
+    ratio = cota_value / dock_elevation
+    return _classify(ratio, _COTA_LEVELS)
+
+
+def classify_wind_alert(speed: Optional[float]) -> Dict[str, Any]:
+    return _classify(speed, _WIND_LEVELS)

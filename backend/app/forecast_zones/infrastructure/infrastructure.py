@@ -61,6 +61,7 @@ class ForecastZoneRepository(ForecastZoneRepositoryABC):
         existing_orm_zone.name = zone.name
         existing_orm_zone.description = zone.description
         existing_orm_zone.forecast_system_id = zone.forecast_system_id
+        existing_orm_zone.dock_elevation = zone.dock_elevation
         
         # Convierte el GeoJSON del dominio a la representación de geoalchemy2
         from app.forecast_zones.infrastructure.models import domain_to_orm # Importar aquí para evitar circular

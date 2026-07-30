@@ -6,6 +6,7 @@ class ForecastZoneCreate(BaseModel):
     name: str = Field(..., min_length=1, max_length=255)
     description: Optional[str] = Field(None, max_length=1000)
     forecast_system_id: int = Field(..., gt=0, description="ID del sistema de previsión al que pertenece esta zona.")
+    dock_elevation: Optional[float] = Field(None, description="Cota del dique en metros.")
     # Usamos Dict[str, Any] para geom ya que esperamos un objeto GeoJSON genérico
     geom: Dict[str, Any] = Field(..., description="Geometría de la zona en formato GeoJSON (ej. Point, Polygon, MultiPolygon).")
 
@@ -68,6 +69,7 @@ class ForecastZoneResponse(BaseModel):
     name: str
     description: Optional[str]
     forecast_system_id: int
+    dock_elevation: Optional[float] = None
     geom: Dict[str, Any]
 
     class Config:

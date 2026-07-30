@@ -11,8 +11,10 @@ export interface ForecastMobileListProps {
   hourlyData: ForecastRowData[];
   /** List of model names */
   models: string[];
-  /** Helper function for cell background colors */
-  getBgColorHelper: (height?: number) => string;
+  /** Helper function for cota cell background colors */
+  getCotaColorHelper: (cotaValue?: number) => string;
+  /** Helper function for wind cell background colors */
+  getWindColorHelper: (speed?: number) => string;
   /** Helper function to format dates */
   formatDateHelper: (iso: string) => string;
 }
@@ -27,7 +29,8 @@ defineProps<ForecastMobileListProps>();
       :key="'mob_' + idx"
       :row="row"
       :models="models"
-      :getBgColorHelper="getBgColorHelper"
+      :getCotaColorHelper="getCotaColorHelper"
+      :getWindColorHelper="getWindColorHelper"
       :formatDateHelper="formatDateHelper"
     />
   </div>

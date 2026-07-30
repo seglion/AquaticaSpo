@@ -38,7 +38,9 @@ async def create_hindcast_point(
         latitude=payload.latitude,
         longitude=payload.longitude,
         url=payload.url,
-        models=payload.models
+        models=payload.models,
+        wind_url=payload.wind_url,
+        wind_models=payload.wind_models
     )
 
     created_point = await use_case.execute(hindcast_point, requester)

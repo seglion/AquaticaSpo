@@ -62,7 +62,7 @@ class ForecastRepository(ForecastService):
                         response.raise_for_status()
                         hindcast_point = response.json()
                         
-                        # Descargar datos de la API externa
+                        # Descargar datos marinos de la API externa
                         marine_data = await self.fetch_marine_data(external_client, hindcast_point)
                         
                         if not marine_data:
@@ -70,19 +70,43 @@ class ForecastRepository(ForecastService):
                             continue
 
                         print(f"\nDatos marinos obtenidos para el punto {hindcast_point.get('id')}")
-                        
+
+                        merged_data = marine_data
+
+                        # Descargar datos de viento si el punto tiene wind_url configurado
+                        wind_data = await self.fetch_wind_data(external_client, hindcast_point)
+                        if wind_data:
+                            print(f"Datos de viento obtenidos para el punto {hindcast_point.get('id')}")
+                            # Merge del hourly de viento en los datos marinos
+                            marine_hourly = marine_data.get("hourly", {})
+                            wind_hourly = wind_data.get("hourly", {})
+
+                            # Combinar hourly_units
+                            marine_units = marine_data.get("hourly_units", {})
+                            wind_units = wind_data.get("hourly_units", {})
+                            marine_units.update(wind_units)
+
+                            # Combinar hourly (se salta 'time' para no duplicarlo)
+                            for key, values in wind_hourly.items():
+                                if key != "time":
+                                    marine_hourly[key] = values
+
+                            merged_data = marine_data
+                        else:
+                            print(f"No se obtuvieron datos de viento para el punto {hindcast_point.get('id')}")
+
                         # Preparar el payload para enviar a nuestro backend
                         request_content = {
                             "point_id": hindcast_point.get('id'),
                             "downloaded_at": datetime.now(timezone.utc).isoformat(timespec='milliseconds').replace('+00:00', 'Z'),
-                            "data": marine_data
+                            "data": merged_data
                         }
 
                         # Enviar los datos descargados a nuestro backend para guardarlos
                         post_response = await backend_client.post('/downloaded-data/', json=request_content)
                         
                         post_response.raise_for_status()
-                        print(f"Datos marinos guardados para el punto {hindcast_point.get('id')}")
+                        print(f"Datos guardados para el punto {hindcast_point.get('id')}")
 
                         # 4. Notificar al worker con los detalles precisos para la ejecución
                         downloaded_data_info = post_response.json()
@@ -142,6 +166,32 @@ class ForecastRepository(ForecastService):
             return None
         except httpx.RequestError as e:
             print(f"Error de conexión al consultar API para punto id={point_id}: {e}")
+            return None
+
+    async def fetch_wind_data(self, client: httpx.AsyncClient, point: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+        """Obtiene datos de viento de la API de Open-Meteo para un punto específico."""
+        wind_url = point.get("wind_url")
+        if not wind_url:
+            return None
+
+        wind_models = point.get("wind_models")
+        params = {
+            'latitude': point['latitude'],
+            'longitude': point['longitude'],
+            'hourly': 'wind_speed_10m,wind_gusts_10m,wind_direction_10m',
+        }
+        if wind_models:
+            params['models'] = ','.join(self.normalize_model_name(m) for m in wind_models)
+
+        try:
+            response = await client.get(wind_url, params=params)
+            response.raise_for_status()
+            return response.json()
+        except httpx.HTTPStatusError as e:
+            print(f"Error de estado HTTP al obtener viento para punto id={point.get('id')}: {e.response.status_code} - {e.response.text}")
+            return None
+        except httpx.RequestError as e:
+            print(f"Error de conexión al consultar API de viento para punto id={point.get('id')}: {e}")
             return None
 
 

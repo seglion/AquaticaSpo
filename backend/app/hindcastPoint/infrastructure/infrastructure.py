@@ -34,6 +34,8 @@ class HindcastPointRepository(HindcastPointRepositoryABC):
         hindcast_point_orm.longitude = hindcastpoint.longitude
         hindcast_point_orm.url = hindcastpoint.url
         hindcast_point_orm.models = hindcastpoint.models
+        hindcast_point_orm.wind_url = hindcastpoint.wind_url
+        hindcast_point_orm.wind_models = hindcastpoint.wind_models
 
         self.session.add(hindcast_point_orm)
         await self.session.commit()
