@@ -492,6 +492,7 @@ class ForecastWorkerRepository(ForecastWorkerService):
         
         Hmin, Hmax = np.min(Hii), np.max(Hii)
         Tpmin, Tpmax = np.min(Tpii), np.max(Tpii)
+        mareamin, mareamax = np.min(mareaii), np.max(mareaii)
         
         Hpropa = Matriz[:, 0::2]
         n_ptos = Hpropa.shape[1]
@@ -528,7 +529,13 @@ class ForecastWorkerRepository(ForecastWorkerService):
             # Interpolar la serie de niveles de marea para que coincida con los timestamps del pronóstico.
             target_times_numeric = df.index.astype(np.int64)
             level_series = np.interp(target_times_numeric, source_times_numeric, source_levels)+1.95
-            
+            # Recortar al rango del hipercubo (igual que Hs_wave/Tp_wave): en mareas vivas
+            # el nivel puede salirse de [0, 4.5] y dejar el punto fuera del casco convexo
+            # del LinearNDInterpolator 4D, que devuelve NaN para puntos no interpolables
+            # (esto rompía el POST a /forecast-results/ con "Out of range float values
+            # are not JSON compliant: nan").
+            level_series = np.clip(level_series, mareamin, mareamax)
+
             Hs_wave0 = df['height_calibrated'].values
             Dir_wave = df['direction'].values
             Dir_wave[Dir_wave > 180] -= 360
@@ -542,10 +549,11 @@ class ForecastWorkerRepository(ForecastWorkerService):
 
             
             # Zonas de sombra
-            Hs_wave[(Dir_wave < min(Dirii)) | (Dir_wave > max(Dirii))] = 0
-            Hs_wave0[(Dir_wave < min(Dirii)) | (Dir_wave > max(Dirii))] = 0
-            Tp_wave[(Dir_wave < min(Dirii)) | (Dir_wave > max(Dirii))] = Tpmin
-            Dir_wave[(Dir_wave < min(Dirii)) | (Dir_wave > max(Dirii))] = 0
+            shadow_mask = (Dir_wave < min(Dirii)) | (Dir_wave > max(Dirii))
+            Hs_wave[shadow_mask] = 0
+            Hs_wave0[shadow_mask] = 0
+            Tp_wave[shadow_mask] = Tpmin
+            Dir_wave[shadow_mask] = 0
             
             for ind in range(n_ptos):
                 pto = ind
@@ -572,6 +580,14 @@ class ForecastWorkerRepository(ForecastWorkerService):
                 # 5. Aplicar el factor de altura de ola reconstruido a la altura de ola original.
                 H_wave = H_factor_reconstructed * Hs_wave0
                 D_wave[D_wave < 0] += 360 # Normalizar dirección a 0-360
+
+                # En zona de sombra el punto de consulta es exactamente el origen (U=V=0),
+                # un vértice degenerado del casco convexo (Hsig mínimo del hipercubo es 0.1,
+                # no 0) que LinearNDInterpolator puede resolver como NaN por precisión
+                # numérica. Forzamos el resultado físico esperado (sin energía de oleaje)
+                # en vez de depender de la interpolación para estos puntos.
+                H_wave[shadow_mask] = 0
+                D_wave[shadow_mask] = 0
 
                 # 6. Calcular el remonte (wave runup) EurOtop para este punto/modelo.
                 # Todas las series necesarias ya están en scope y alineadas por df.index.
