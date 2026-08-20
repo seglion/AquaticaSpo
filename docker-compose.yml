@@ -80,9 +80,12 @@ services:
     restart: always
     ports:
       # Puerto para la comunicación de la aplicación (AMQP)
-      - "5672:5672"
+      # Remapeado a 5673 en el host para convivir con otra app en el mismo
+      # servidor que ya usa el 5672; la comunicación interna entre los
+      # servicios de este stack sigue usando 'rabbitmq:5672' (red de Docker).
+      - "5673:5672"
       # Puerto para la interfaz de gestión web
-      - "15672:15672"
+      - "15673:15672"
     environment:
       # Puedes dejar los usuarios por defecto (guest/guest) para desarrollo local
       - RABBITMQ_DEFAULT_USER=${RABBITMQ_USER}
