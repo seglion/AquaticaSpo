@@ -20,7 +20,9 @@ class NotificationService(ABC):
         ...
 
     @abstractmethod
-    async def send_completed_email(self, recipients: List[Recipient], event: ForecastCompletedEvent) -> None:
+    async def send_completed_email(
+        self, recipients: List[Recipient], event: ForecastCompletedEvent, requester: User
+    ) -> None:
         ...
 
     @abstractmethod

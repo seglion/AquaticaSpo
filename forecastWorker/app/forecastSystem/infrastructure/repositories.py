@@ -268,6 +268,7 @@ class ForecastWorkerRepository(ForecastWorkerService):
                 "intervals": intervals,
                 "lon": coords[0] if coords else None,
                 "lat": coords[1] if coords else None,
+                "dock_elevation": dock,
             })
 
         # 3d. Alerta de viento global (común a todas las zonas)

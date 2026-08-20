@@ -5,9 +5,14 @@ WORKDIR /app
 ENV PYTHONDONTWRITEBYTECODE=1
 ENV PYTHONUNBUFFERED=1
 
-COPY requirements.txt .
+
+# (contexto de build = raíz del repo, ver docker-compose.yml)
+COPY mailer/requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-COPY . .
+COPY mailer/ .
+
+# Umbrales de alerta compartidos con el frontend y forecastWorker (única fuente de verdad)
+COPY alert_thresholds.json .
 
 CMD ["python", "main.py"]

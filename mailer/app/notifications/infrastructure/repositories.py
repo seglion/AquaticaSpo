@@ -17,6 +17,7 @@ from app.notifications.domain.models import (
     ZoneAlert,
 )
 from app.notifications.application.services import NotificationService
+from app.notifications.infrastructure.pdf_generator import generate_zone_pdf
 
 TEMPLATES_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "templates")
 
@@ -112,11 +113,11 @@ class NotificationRepository(NotificationService):
             print(f"Error obteniendo usuarios administradores: {e.response.text}")
             return []
 
-    async def _fetch_zone_map_attachment(self, zone: ZoneAlert) -> Optional[Dict[str, str]]:
+    async def _fetch_zone_map_png(self, zone: ZoneAlert) -> Optional[bytes]:
         """Descarga una ortofoto PNOA del IGN centrada en la zona y le dibuja un
-        marcador. Devuelve un adjunto listo para Brevo (name/content en base64),
-        o None si la zona no tiene coordenadas o falla la descarga (nunca debe
-        impedir el envío del email por esto)."""
+        marcador. Devuelve los bytes PNG crudos, o None si la zona no tiene
+        coordenadas o falla la descarga (nunca debe impedir el envío del email
+        por esto)."""
         if zone.lat is None or zone.lon is None:
             return None
 
@@ -149,11 +150,57 @@ class NotificationRepository(NotificationService):
 
             buf = io.BytesIO()
             image.save(buf, format="PNG")
-            content_b64 = base64.b64encode(buf.getvalue()).decode("ascii")
-            return {"name": f"zona_{zone.zone_id}_ortofoto.png", "content": content_b64}
+            return buf.getvalue()
         except Exception as e:
             print(f"⚠ No se pudo generar la ortofoto de la zona {zone.zone_id}: {e}")
             return None
+
+    async def _fetch_zone_map_attachment(self, zone: ZoneAlert, png_bytes: Optional[bytes]) -> Optional[Dict[str, str]]:
+        """Envuelve unos bytes PNG de ortofoto ya descargados como adjunto listo
+        para Brevo (name/content en base64)."""
+        if not png_bytes:
+            return None
+        content_b64 = base64.b64encode(png_bytes).decode("ascii")
+        return {"name": f"zona_{zone.zone_id}_ortofoto.png", "content": content_b64}
+
+    async def get_zone_result(self, zone_id: int, requester: User) -> Optional[dict]:
+        """Obtiene el último resultado de previsión (datos horarios completos)
+        de una zona, vía GET /forecast-results/latest-by-zone/{zone_id}. Se usa
+        para generar el PDF adjunto; None si la zona no tiene resultados o falla
+        la petición (nunca debe impedir el envío del email por esto)."""
+        try:
+            response = await self._get_authed(f"/forecast-results/latest-by-zone/{zone_id}", requester)
+            response.raise_for_status()
+            return response.json()
+        except httpx.HTTPStatusError as e:
+            print(f"⚠ No se pudo obtener el resultado de la zona {zone_id} para el PDF: {e.response.text}")
+            return None
+        except Exception as e:
+            print(f"⚠ No se pudo obtener el resultado de la zona {zone_id} para el PDF: {e}")
+            return None
+
+    async def _generate_zone_pdf_attachment(
+        self, zone: ZoneAlert, requester: User, map_png_bytes: Optional[bytes]
+    ) -> Optional[Dict[str, str]]:
+        """Genera el PDF de previsión de una zona y lo envuelve como adjunto
+        para Brevo. Cualquier fallo (sin resultado guardado, error generando el
+        PDF) se loguea y se traduce en 'sin adjunto', nunca en una excepción que
+        interrumpa el envío del email."""
+        result = await self.get_zone_result(zone.zone_id, requester)
+        if not result:
+            return None
+        hourly = (result.get("result_data") or {}).get("hourly") or {}
+        execution_date = result.get("execution_date") or ""
+        try:
+            pdf_bytes = generate_zone_pdf(zone, hourly, execution_date, map_png_bytes)
+        except Exception as e:
+            print(f"⚠ No se pudo generar el PDF de la zona {zone.zone_id}: {e}")
+            return None
+        if not pdf_bytes:
+            return None
+        safe_name = "".join(c if c.isalnum() or c in "-_" else "_" for c in (zone.zone_name or f"zona_{zone.zone_id}"))
+        content_b64 = base64.b64encode(pdf_bytes).decode("ascii")
+        return {"name": f"prevision_oleaje_{safe_name}.pdf", "content": content_b64}
 
     async def _send_via_brevo(
         self,
@@ -187,22 +234,30 @@ class NotificationRepository(NotificationService):
             except httpx.HTTPStatusError as e:
                 print(f"❌ Error enviando email a {recipient.email}: {e.response.text}")
 
-    async def send_completed_email(self, recipients: List[Recipient], event: ForecastCompletedEvent) -> None:
+    async def send_completed_email(
+        self, recipients: List[Recipient], event: ForecastCompletedEvent, requester: User
+    ) -> None:
         if not recipients:
             print(f"No hay destinatarios para el sistema {event.forecast_system_id}, no se envía email.")
             return
 
         zones = event.zones_by_severity()
 
-        # Se generan las ortofotos una sola vez (no una vez por destinatario) y se
-        # reutilizan como adjuntos inline (referenciados por 'cid:' en el HTML).
+        # Se generan las ortofotos y los PDF una sola vez (no una vez por
+        # destinatario). El mapa se reutiliza como adjunto inline (referenciado
+        # por 'cid:' en el HTML) y también embebido dentro del PDF de la zona.
         attachments: List[Dict[str, str]] = []
         zone_map_cids: Dict[int, str] = {}
         for zone in zones:
-            attachment = await self._fetch_zone_map_attachment(zone)
-            if attachment:
-                attachments.append(attachment)
-                zone_map_cids[zone.zone_id] = attachment["name"]
+            map_png = await self._fetch_zone_map_png(zone)
+            map_attachment = await self._fetch_zone_map_attachment(zone, map_png)
+            if map_attachment:
+                attachments.append(map_attachment)
+                zone_map_cids[zone.zone_id] = map_attachment["name"]
+
+            pdf_attachment = await self._generate_zone_pdf_attachment(zone, requester, map_png)
+            if pdf_attachment:
+                attachments.append(pdf_attachment)
 
         template = _jinja_env.get_template("forecast_completed.html.j2")
         html_body = template.render(

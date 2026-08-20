@@ -4,3 +4,5 @@ python-dotenv==1.1.1
 Jinja2==3.1.6
 tzdata==2026.2
 Pillow==12.3.0
+reportlab>=4.2
+matplotlib>=3.9

@@ -36,6 +36,7 @@ class ZoneAlert:
     max_q: Optional[float] = None
     lon: Optional[float] = None
     lat: Optional[float] = None
+    dock_elevation: Optional[float] = None
     intervals: List[AlertInterval] = field(default_factory=list)
 
 

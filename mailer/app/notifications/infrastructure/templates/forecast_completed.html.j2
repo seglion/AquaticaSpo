@@ -238,6 +238,11 @@
           <!-- Pie de página -->
           <tr>
             <td style="padding: 20px 32px 28px 32px; border-top: 1px solid #e2e8f0;">
+              {% if zones %}
+              <p style="color: #64748b; font-size: 11.5px; margin: 0 0 8px 0;">
+                &#128206; Se adjunta el parte de previsión en PDF de cada zona.
+              </p>
+              {% endif %}
               <p style="color: #94a3b8; font-size: 11.5px; margin: 0 0 4px 0;">
                 Identificador del sistema de previsión: #{{ forecast_system_id }}
               </p>

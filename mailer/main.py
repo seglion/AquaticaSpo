@@ -70,7 +70,7 @@ async def handle_completed(message: dict, repo: NotificationRepository, requeste
         )
         return
 
-    await repo.send_completed_email(recipients, event)
+    await repo.send_completed_email(recipients, event, requester)
     logging.info(f"Email de éxito procesado para ForecastSystem ID: {event.forecast_system_id}")
 
 
