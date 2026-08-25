@@ -1,3 +1,7 @@
+# Este compose es para DESARROLLO LOCAL (puertos publicados al host, red
+# bridge por defecto). Producción usa docker-compose.prod.yml, que vive en
+# una red interna propia sin publicar puertos, para convivir con LouroApp
+# en el mismo servidor sin colisiones (ver ese archivo para más detalle).
 services:
   db:
     image: postgis/postgis:16-3.4
@@ -80,12 +84,9 @@ services:
     restart: always
     ports:
       # Puerto para la comunicación de la aplicación (AMQP)
-      # Remapeado a 5673 en el host para convivir con otra app en el mismo
-      # servidor que ya usa el 5672; la comunicación interna entre los
-      # servicios de este stack sigue usando 'rabbitmq:5672' (red de Docker).
-      - "5673:5672"
+      - "5672:5672"
       # Puerto para la interfaz de gestión web
-      - "15673:15672"
+      - "15672:15672"
     environment:
       # Puedes dejar los usuarios por defecto (guest/guest) para desarrollo local
       - RABBITMQ_DEFAULT_USER=${RABBITMQ_USER}
