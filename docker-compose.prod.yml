@@ -89,8 +89,8 @@ services:
 
   mailer:
     build:
-      context: ./mailer
-      dockerfile: Dockerfile
+      context: . # Raíz del repo, para poder copiar alert_thresholds.json compartido
+      dockerfile: mailer/Dockerfile
     container_name: aquatica_mailer
     restart: always
     env_file:
