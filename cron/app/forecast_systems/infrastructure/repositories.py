@@ -1,3 +1,4 @@
+import asyncio
 import httpx
 import os
 from typing import List, Dict, Any, Optional
@@ -134,8 +135,30 @@ class ForecastRepository(ForecastService):
     
     def normalize_model_name(self,model_name):
         return model_name.lower().replace('-', '_').replace(' ', '_')
-    
-    
+
+    async def _get_with_retry(
+        self, client: httpx.AsyncClient, url: str, params: Dict[str, Any],
+        retries: int = 3, backoff_seconds: float = 3.0
+    ) -> httpx.Response:
+        """GET con reintentos ante fallos transitorios (5xx, errores de conexión).
+
+        Open-Meteo devuelve 503 "The service is overloaded" de forma intermitente
+        en horas punta; sin reintento, esas franjas se quedan sin datos de viento.
+        """
+        last_exception: Exception = RuntimeError("Sin intentos realizados")
+        for attempt in range(1, retries + 1):
+            try:
+                response = await client.get(url, params=params)
+                if response.status_code >= 500:
+                    response.raise_for_status()
+                return response
+            except (httpx.HTTPStatusError, httpx.RequestError) as e:
+                last_exception = e
+                if attempt < retries:
+                    print(f"Intento {attempt}/{retries} fallido para {url}: {e}. Reintentando en {backoff_seconds}s...")
+                    await asyncio.sleep(backoff_seconds)
+        raise last_exception
+
     async def fetch_marine_data(self, client: httpx.AsyncClient, point: Dict[str, Any]) -> Optional[Dict[str, Any]]:
         """Obtiene datos de la API de Open-Meteo para un punto específico."""
         required_keys = ['id', 'url', 'latitude', 'longitude', 'models']
@@ -158,7 +181,7 @@ class ForecastRepository(ForecastService):
         }
 
         try:
-            response = await client.get(url, params=params)
+            response = await self._get_with_retry(client, url, params)
             response.raise_for_status()
             return response.json()
         except httpx.HTTPStatusError as e:
@@ -184,7 +207,7 @@ class ForecastRepository(ForecastService):
             params['models'] = ','.join(self.normalize_model_name(m) for m in wind_models)
 
         try:
-            response = await client.get(wind_url, params=params)
+            response = await self._get_with_retry(client, wind_url, params)
             response.raise_for_status()
             return response.json()
         except httpx.HTTPStatusError as e:
