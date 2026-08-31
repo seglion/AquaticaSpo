@@ -271,21 +271,33 @@ class ForecastWorkerRepository(ForecastWorkerService):
                 "dock_elevation": dock,
             })
 
-        # 3d. Alerta de viento global (común a todas las zonas)
+        # 3d. Alerta de viento global (común a todas las zonas). Se clasifica sobre
+        # el máximo de cada hora entre velocidad sostenida y racha (wind_gusts_10m),
+        # ya que la racha es la que determina el riesgo real, igual que en el
+        # semáforo Vel/Ráf del PDF y del visor.
         wind_alert = None
         wind_intervals = []
+        best_wind = None
+        best_gust = None
         if wind_data and wind_data.get("wind_speed_10m"):
             speeds = wind_data["wind_speed_10m"]
+            gusts = wind_data.get("wind_gusts_10m") or []
+            combined = [
+                max((v for v in (speeds[i], gusts[i] if i < len(gusts) else None) if v is not None), default=None)
+                for i in range(len(speeds))
+            ]
             best_wind = max(s for s in speeds if s is not None) if any(s is not None for s in speeds) else None
-            wind_alert = classify_wind_alert(best_wind)
-            if wind_times and len(wind_times) == len(speeds):
+            best_gust = max(g for g in gusts if g is not None) if any(g is not None for g in gusts) else None
+            best_combined = max(v for v in combined if v is not None) if any(v is not None for v in combined) else None
+            wind_alert = classify_wind_alert(best_combined)
+            if wind_times and len(wind_times) == len(combined):
                 current_iv = None
-                for idx, s in enumerate(speeds):
-                    over = s is not None and s > 50
+                for idx, v in enumerate(combined):
+                    over = v is not None and v > 50
                     if over and current_iv is None:
-                        current_iv = {"start_idx": idx, "max_speed": s}
-                    elif over and current_iv is not None and s > current_iv["max_speed"]:
-                        current_iv["max_speed"] = s
+                        current_iv = {"start_idx": idx, "max_speed": v}
+                    elif over and current_iv is not None and v > current_iv["max_speed"]:
+                        current_iv["max_speed"] = v
                     elif not over and current_iv is not None:
                         current_iv["end_idx"] = idx
                         wind_intervals.append({
@@ -304,6 +316,8 @@ class ForecastWorkerRepository(ForecastWorkerService):
         if wind_alert is None:
             wind_alert = {}
         wind_alert["intervals"] = wind_intervals
+        wind_alert["max_wind_speed"] = best_wind
+        wind_alert["max_gust_speed"] = best_gust
 
         return zone_alerts, wind_alert
 

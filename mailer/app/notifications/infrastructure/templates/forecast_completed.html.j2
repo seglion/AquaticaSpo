@@ -80,7 +80,7 @@
           </tr>
           {% endif %}
 
-          {% set overtopping_zones = zones | selectattr('max_q', 'gt', 10) | list %}
+          {% set overtopping_zones = zones | selectattr('max_q') | selectattr('max_q', 'gt', 10) | list %}
           {% if overtopping_zones %}
           <!-- Banner de rebase -->
           <tr>
@@ -100,18 +100,38 @@
           </tr>
           {% endif %}
 
-          {% if wind_alert and wind_alert.level == 'red' %}
-          <!-- Banner de viento -->
+          {% if wind_alert and 'level' in wind_alert %}
+          {% set wind_badge_text = '#ffffff' if wind_alert.level in ['red', 'orange'] else '#0f172a' %}
+          {% set wind_ivs = wind_alert.get('intervals', []) %}
+          <!-- Resumen de viento -->
           <tr>
-            <td style="padding: 0 32px 8px 32px;">
-              <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color: #fef2f2; border: 1px solid #fecaca; border-left: 4px solid #dc2626; border-radius: 6px;">
+            <td style="padding: 0 32px 12px 32px;">
+              <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color: {{ '#fef2f2' if wind_alert.level == 'red' else '#f8fafc' }}; border: 1px solid {{ '#fecaca' if wind_alert.level == 'red' else '#e2e8f0' }}; border-left: 4px solid {{ wind_alert.color or '#94a3b8' }}; border-radius: 6px;">
                 <tr>
                   <td style="padding: 14px 16px;">
-                    <p style="margin: 0; color: #7f1d1d; font-size: 13.5px; line-height: 1.5;">
-                      <strong>&#9888; Viento:</strong>
-                      Se esperan vientos fuertes (&gt; 50 km/h).
+                    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
+                      <tr>
+                        <td style="color: #0f172a; font-size: 14.5px; font-weight: bold;">
+                          &#128168; Viento
+                        </td>
+                        <td align="right">
+                          <span style="display: inline-block; padding: 3px 11px; border-radius: 999px; font-size: 11.5px; font-weight: bold; background-color: {{ wind_alert.color or '#94a3b8' }}; color: {{ wind_badge_text }}; white-space: nowrap;">
+                            {{ wind_alert.label or 'Sin alerta' }}
+                          </span>
+                        </td>
+                      </tr>
+                    </table>
+                    {% if wind_alert.max_wind_speed is not none or wind_alert.max_gust_speed is not none %}
+                    <p style="margin: 8px 0 0 0; color: {{ '#7f1d1d' if wind_alert.level == 'red' else '#475569' }}; font-size: 12.5px;">
+                      {% if wind_alert.max_wind_speed is not none %}
+                      Velocidad sostenida máxima: <strong>{{ '%.0f'|format(wind_alert.max_wind_speed) }} km/h</strong>
+                      {% endif %}
+                      {% if wind_alert.max_gust_speed is not none %}
+                      {{ '&nbsp;&nbsp;|&nbsp;&nbsp;' | safe if wind_alert.max_wind_speed is not none }}
+                      Racha máxima: <strong>{{ '%.0f'|format(wind_alert.max_gust_speed) }} km/h</strong>
+                      {% endif %}
                     </p>
-                    {% set wind_ivs = wind_alert.get('intervals', []) %}
+                    {% endif %}
                     {% if wind_ivs %}
                     <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-top: 10px;">
                       {% for iv in wind_ivs %}
